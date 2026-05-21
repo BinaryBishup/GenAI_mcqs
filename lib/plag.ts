@@ -1,82 +1,60 @@
-import { embed } from "./voyage";
-import { exaSearch } from "./exa";
+import * as fuzz from "fuzzball";
 import { supabaseAdmin } from "./supabase";
 import { env } from "./env";
 import { normalizeText } from "./utils";
 import type { MCQ, PlagMatch, PlagVerdict } from "./types";
 
 /**
- * Hybrid plagiarism check:
- *   1. Embed the question (+ a code line if present) with Voyage.
- *   2. KNN in plag_corpus via pgvector cosine.
- *   3. If top similarity >= PLAG_COSINE_THRESHOLD → flagged.
- *   4. If similarity is in the "uncertain" band → Exa fallback.
- *   5. Otherwise → unique.
+ * Plag check — exact / near-exact match against the local scraped corpus.
+ *
+ * Two-stage pipeline:
+ *   1. Postgres `match_plag_trgm()` — trigram-similarity prefilter using the
+ *      existing GIN(question_norm gin_trgm_ops) index. Cheap, returns top-K.
+ *   2. fuzzball `token_set_ratio` — precise re-ranking on the candidates.
+ *      Token-set ratio is tolerant of word reordering but not of conceptual
+ *      paraphrasing, which is exactly what we want.
+ *
+ * Threshold: PLAG_FUZZ_THRESHOLD (default 0.85). At 0.85 the check accepts
+ * minor edits ("What is" → "Which is", swapped identifier names) and rejects
+ * near-verbatim copies.
  */
 export async function checkPlag(mcq: MCQ): Promise<PlagVerdict> {
-  const queries = [normalizeText(mcq.question)];
-  const codeLine = pickDistinctiveLine(mcq.snippet?.code);
-  if (codeLine) queries.push(codeLine);
-
-  const [vectors] = await Promise.all([embed(queries, { inputType: "query" })]);
-
+  const supa = supabaseAdmin();
+  const queryNorm = normalizeText(mcq.question);
   const language = mcq.snippet?.language ?? null;
-  const allCorpusMatches: PlagMatch[] = [];
 
-  for (const v of vectors) {
-    const { data, error } = await supabaseAdmin().rpc("match_plag_corpus", {
-      query_embedding: v as unknown as string,  // supabase-js serializes arrays as pgvector literals
-      match_count: 5,
-      filter_language: language,
-    });
-    if (error) {
-      console.warn("match_plag_corpus rpc error:", error.message);
-      continue;
-    }
-    for (const r of (data ?? []) as { id: number; source: string; url: string; question: string; similarity: number }[]) {
-      allCorpusMatches.push({
-        source: r.source,
-        url: r.url,
-        similarity: r.similarity,
-        question: r.question,
-      });
-    }
+  const { data, error } = await supa.rpc("match_plag_trgm", {
+    query_text: queryNorm,
+    match_count: 10,
+    filter_language: language,
+  });
+
+  if (error) {
+    console.warn("match_plag_trgm rpc error:", error.message);
+    return { verdict: "unique", matches: [], method: "corpus" };
   }
 
-  // De-dupe by url, keep highest similarity.
-  const byUrl = new Map<string, PlagMatch>();
-  for (const m of allCorpusMatches) {
-    const existing = byUrl.get(m.url);
-    if (!existing || m.similarity > existing.similarity) byUrl.set(m.url, m);
-  }
-  const corpus = [...byUrl.values()].sort((a, b) => b.similarity - a.similarity);
-  const top = corpus[0]?.similarity ?? 0;
-
-  if (top >= env.plagThreshold()) {
-    return { verdict: "flagged", matches: corpus.slice(0, 5), method: "corpus" };
+  type Row = { id: number; source: string; url: string; question: string; similarity: number };
+  const rows = (data ?? []) as Row[];
+  if (rows.length === 0) {
+    return { verdict: "unique", matches: [], method: "corpus" };
   }
 
-  // Uncertain band → Exa fallback (only if key present).
-  if (top >= env.plagExaLow() && top < env.plagExaHigh() && env.exaKey()) {
-    const exaMatches = await exaSearch(mcq.question, 5);
-    // Treat any Exa hit with score > 0.7 as flagged (Exa's own neural relevance).
-    const strong = exaMatches.filter((m) => m.similarity > 0.7);
-    if (strong.length > 0) {
-      return { verdict: "flagged", matches: [...corpus.slice(0, 3), ...strong].slice(0, 5), method: "corpus+exa" };
-    }
-    return { verdict: "unique", matches: corpus.slice(0, 3), method: "corpus+exa" };
-  }
+  // Re-rank with token_set_ratio so word reorderings don't fool us.
+  const ranked = rows.map((r) => ({
+    source: r.source,
+    url: r.url,
+    question: r.question,
+    similarity: fuzz.token_set_ratio(queryNorm, normalizeText(r.question)) / 100,
+  }));
+  ranked.sort((a, b) => b.similarity - a.similarity);
 
-  return { verdict: "unique", matches: corpus.slice(0, 3), method: "corpus" };
-}
+  const threshold = env.plagFuzzThreshold();
+  const flagged = ranked[0].similarity >= threshold;
 
-function pickDistinctiveLine(code?: string | null): string | null {
-  if (!code) return null;
-  const lines = code
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 20)
-    .filter((l) => !/^(print\(|console\.log|System\.out|int main|public static void)/.test(l))
-    .filter((l) => !/^[\/\/#*]/.test(l));
-  return lines[0] ?? null;
+  return {
+    verdict: flagged ? "flagged" : "unique",
+    matches: ranked.slice(0, 5) as PlagMatch[],
+    method: "corpus",
+  };
 }

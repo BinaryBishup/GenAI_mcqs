@@ -1,25 +1,24 @@
 /**
- * Build the `plag_corpus` table by scraping public MCQ sites, embedding each
- * question with Voyage, and inserting into Supabase.
+ * Build the `plag_corpus` table by scraping public MCQ sites and inserting
+ * normalized question text. No embeddings — plag check uses pg_trgm +
+ * fuzzball at query time.
  *
  * Run with: `npm run build:corpus`
  *
  * v1 sources:
  *   - Sanfoundry — sanfoundry.com/<topic>-questions-answers/
  *
- * Easy to extend with more sources: add another scraper to SCRAPERS below.
+ * Easy to extend: add another scraper to SCRAPERS below.
  * Each scraper yields { source, url, topic, language, question, code? } objects.
- *
- * Cost estimate: ~$1.50 in Voyage embeddings for ~50k questions.
  */
-import "dotenv/config";
+import { config as dotenvConfig } from "dotenv";
+dotenvConfig({ path: ".env.local" });
+dotenvConfig({ path: ".env" });
 import { createClient } from "@supabase/supabase-js";
 import * as cheerio from "cheerio";
 
-const VOYAGE_API = "https://api.voyageai.com/v1/embeddings";
-const VOYAGE_MODEL = process.env.VOYAGE_EMBEDDING_MODEL ?? "voyage-3";
-const BATCH = 50;       // embeddings per Voyage call
-const PAGE_DELAY_MS = 600;  // be polite
+const BATCH = 200;            // rows per insert
+const PAGE_DELAY_MS = 600;    // be polite
 
 interface ScrapedQuestion {
   source: string;
@@ -31,7 +30,7 @@ interface ScrapedQuestion {
 }
 
 // -----------------------------------------------------------------------------
-// Source: Sanfoundry — example topic pages. Extend SANFOUNDRY_PAGES as needed.
+// Source: Sanfoundry — index page lists per-topic question pages.
 // -----------------------------------------------------------------------------
 const SANFOUNDRY_INDEX = "https://www.sanfoundry.com/1000-python-questions-answers/";
 
@@ -44,7 +43,6 @@ async function fetchHtml(url: string): Promise<string> {
 }
 
 async function* scrapeSanfoundry(): AsyncGenerator<ScrapedQuestion> {
-  // The index page lists per-topic question pages.
   const index = await fetchHtml(SANFOUNDRY_INDEX);
   const $ = cheerio.load(index);
   const links: string[] = [];
@@ -64,8 +62,6 @@ async function* scrapeSanfoundry(): AsyncGenerator<ScrapedQuestion> {
       const topic = d("h1").first().text().trim() || null;
       const language = inferLanguage(url, topic ?? "");
 
-      // Collect inside the cheerio callback, then yield outside (you can't
-      // yield from a non-generator callback).
       const pageItems: ScrapedQuestion[] = [];
       d("p, li").each((_, el) => {
         const text = d(el).text().trim();
@@ -103,36 +99,20 @@ const SCRAPERS: (() => AsyncGenerator<ScrapedQuestion>)[] = [
 ];
 
 // -----------------------------------------------------------------------------
-// Embedding + insertion
-// -----------------------------------------------------------------------------
-async function embedBatch(texts: string[]): Promise<number[][]> {
-  const res = await fetch(VOYAGE_API, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.VOYAGE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      input: texts,
-      model: VOYAGE_MODEL,
-      input_type: "document",
-      truncation: true,
-    }),
-  });
-  if (!res.ok) throw new Error(`Voyage: ${res.status} ${await res.text()}`);
-  const json = await res.json();
-  return (json.data as { embedding: number[] }[]).map((d) => d.embedding);
-}
-
 function normalize(q: string): string {
   return q.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
-  if (!process.env.VOYAGE_API_KEY) throw new Error("set VOYAGE_API_KEY");
+  const key =
+    process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    throw new Error("set NEXT_PUBLIC_SUPABASE_URL and a key (SUPABASE_SECRET_KEY / SERVICE_ROLE_KEY / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)");
+  }
   const supa = createClient(url, key, { auth: { persistSession: false } });
 
   let buffer: ScrapedQuestion[] = [];
@@ -140,10 +120,7 @@ async function main() {
 
   const flush = async () => {
     if (buffer.length === 0) return;
-    const texts = buffer.map((b) => b.question);
-    const vectors = await embedBatch(texts);
-
-    const rows = buffer.map((b, i) => ({
+    const rows = buffer.map((b) => ({
       source: b.source,
       url: b.url,
       topic: b.topic,
@@ -151,12 +128,7 @@ async function main() {
       question: b.question,
       question_norm: normalize(b.question),
       code: b.code,
-      embedding: vectors[i],
     }));
-
-    // upsert on (source, url) — but our unique constraint is on that pair, and
-    // a single page yields many questions per url. Switch to plain insert and
-    // tolerate duplicates by ignoring the conflict.
     const { error } = await supa.from("plag_corpus").insert(rows);
     if (error && !/duplicate key/i.test(error.message)) {
       throw new Error(`insert: ${error.message}`);
@@ -175,7 +147,6 @@ async function main() {
   await flush();
 
   console.log(`\nDone. ${totalInserted} corpus rows inserted.`);
-  console.log(`Run "ANALYZE plag_corpus;" in Supabase SQL editor to refresh the ivfflat index.`);
 }
 
 main().catch((e) => {

@@ -10,7 +10,10 @@
  *   /corporate/question/codesnippet?mode=<LANG>&code=<urlencoded>
  * iframe. We strip HTML and decode that iframe.
  */
-import "dotenv/config";
+import { config as dotenvConfig } from "dotenv";
+// Next.js convention: prefer .env.local for secrets, fall back to .env.
+dotenvConfig({ path: ".env.local" });
+dotenvConfig({ path: ".env" });
 import { readdirSync } from "fs";
 import { join, basename } from "path";
 import * as XLSX from "xlsx";
@@ -176,8 +179,16 @@ function parseWorkbook(path: string): SampleRow[] {
 
 async function main() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local");
+  // Prefer the secret / service-role key for writes; fall back to the publishable
+  // key for the v1 single-user setup where RLS is off.
+  const key =
+    process.env.SUPABASE_SECRET_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    throw new Error("set NEXT_PUBLIC_SUPABASE_URL and a key (SUPABASE_SECRET_KEY / SERVICE_ROLE_KEY / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)");
+  }
   const supa = createClient(url, key, { auth: { persistSession: false } });
 
   const files = readdirSync(SAMPLES_DIR).filter((f) => f.toLowerCase().endsWith(".xls"));

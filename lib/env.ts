@@ -32,12 +32,8 @@ export const env = {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
     (() => { throw new Error("Missing SUPABASE_SECRET_KEY / SERVICE_ROLE_KEY / PUBLISHABLE_KEY"); })(),
-  voyageKey: () => required("VOYAGE_API_KEY"),
-  voyageModel: () => optional("VOYAGE_EMBEDDING_MODEL", "voyage-3"),
-  exaKey: () => process.env.EXA_API_KEY?.trim() || null,
   judge0Key: () => required("JUDGE0_RAPIDAPI_KEY"),
   judge0Host: () => optional("JUDGE0_RAPIDAPI_HOST", "judge0-ce.p.rapidapi.com"),
-  plagThreshold: () => Number(optional("PLAG_COSINE_THRESHOLD", "0.86")),
-  plagExaLow: () => Number(optional("PLAG_EXA_FALLBACK_LOW", "0.55")),
-  plagExaHigh: () => Number(optional("PLAG_EXA_FALLBACK_HIGH", "0.86")),
+  /** token_set_ratio threshold above which we flag as plagiarized (0–1). */
+  plagFuzzThreshold: () => Number(optional("PLAG_FUZZ_THRESHOLD", "0.85")),
 };

@@ -7,14 +7,19 @@ function envSet(name: string): boolean {
   return !!v && !["sk-ant-...", "..."].includes(v);
 }
 
+function supabaseKeySet(): boolean {
+  return envSet("SUPABASE_SECRET_KEY")
+      || envSet("SUPABASE_SERVICE_ROLE_KEY")
+      || envSet("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY")
+      || envSet("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+}
+
 export async function GET() {
   return NextResponse.json({
     ok: true,
     env: {
       anthropic: envSet("ANTHROPIC_API_KEY"),
-      supabase: envSet("NEXT_PUBLIC_SUPABASE_URL") && envSet("SUPABASE_SERVICE_ROLE_KEY"),
-      voyage: envSet("VOYAGE_API_KEY"),
-      exa: envSet("EXA_API_KEY"),
+      supabase: envSet("NEXT_PUBLIC_SUPABASE_URL") && supabaseKeySet(),
       judge0: envSet("JUDGE0_RAPIDAPI_KEY"),
     },
     models: {
