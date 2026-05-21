@@ -1,159 +1,174 @@
-# MCQ Agent Workflow
+# MCQ Workflow — Web (Next.js + Supabase + Vercel)
 
-An agentic pipeline that **generates** MCQs in the style of a sample batch, **plag-checks** them against the public web, **revamps** flagged ones, and — for code MCQs — **compiles & runs** the snippet to verify the correct answer.
-
-```
-┌──────────┐     ┌────────────┐      ┌──────────┐     ┌──────────┐
-│ Generator│ →   │Plag Checker│ → →  │ Revamper │ →   │ Verifier │
-└──────────┘     └────────────┘  ↑   └──────────┘     └──────────┘
-                       ↓         │                          ↓
-                   flagged ──────┘                   compile & match
-```
-
-All four steps are Claude subagents driven by `claude-agent-sdk`. A FastAPI app
-streams progress to a Next.js frontend over SSE so you can watch what's
-happening in real time.
-
-## Architecture
+Generation pipeline for multiple-choice questions:
 
 ```
-MCQs/
-├── backend/                # Python — agent runtime + API
-│   ├── app/
-│   │   ├── agents/
-│   │   │   ├── generator.py
-│   │   │   ├── plag_checker.py
-│   │   │   ├── revamper.py
-│   │   │   └── verifier.py
-│   │   ├── compiler/
-│   │   │   └── runner.py   # python3 / node / g++ / javac+java / html
-│   │   ├── event_bus.py    # per-session SSE queue
-│   │   ├── workflow.py     # orchestrator (gen → plag → revamp → verify)
-│   │   ├── schemas.py
-│   │   └── main.py         # FastAPI app
-│   ├── samples/example.json
-│   ├── requirements.txt
-│   └── .env.example
-├── frontend/               # Next.js 15 + Tailwind + minimal shadcn-style UI
-│   ├── app/page.tsx        # single-page experience
-│   ├── components/
-│   │   ├── ConfigForm.tsx
-│   │   ├── WorkflowStream.tsx
-│   │   ├── MCQCard.tsx
-│   │   └── ui/             # Button, Card, Field
-│   └── lib/api.ts          # EventSource subscriber
-└── dev.sh                  # one-shot dev runner
+┌──────────┐     ┌──────────────────┐      ┌──────────┐     ┌──────────┐
+│ Generator│ →   │ Plag check       │ → →  │ Revamper │ →   │ Verifier │
+│ (Claude) │     │ pgvector + Exa   │  ↑   │ (Claude) │     │ (Judge0) │
+└──────────┘     └──────────────────┘  │   └──────────┘     └──────────┘
+                       ↓               │                          ↓
+                   flagged ────────────┘                   compile + match
 ```
 
-## Prerequisites
+- **Generator**: Anthropic Messages API, prompt-cached samples block (`claude-haiku-4-5` / `sonnet-4-6` / `opus-4-7` by quality tier).
+- **Plag check**: Voyage AI embeddings → pgvector kNN over a scraped corpus. Optional Exa neural-search fallback in the uncertain similarity band.
+- **Revamper**: Claude rewrites flagged MCQs in-context.
+- **Verifier**: Judge0 (RapidAPI) compiles + runs code MCQs; verdict drives `reassigned_correct_index` / `regenerate_options` fixes.
 
-- Python 3.11+
-- Node 18+ and npm
-- Anthropic API key with access to Sonnet / Opus
-- Toolchains for the languages you want code-MCQ verification on:
-  - `python3`, `node`, `g++`, `javac` + `java`
-  - (the `/api/health` endpoint reports which are present)
+State lives in Supabase Postgres. The frontend streams progress over SSE.
+
+## Stack
+
+- **Frontend + backend**: Next.js 15 (App Router, TypeScript) — single Vercel deploy.
+- **DB**: Supabase Postgres with `pgvector` and `pg_trgm`.
+- **LLM**: Anthropic Messages API with ephemeral prompt caching.
+- **Embeddings**: Voyage AI (`voyage-3`, 1024 dims).
+- **Search fallback**: Exa neural search.
+- **Code sandbox**: Judge0 CE via RapidAPI.
 
 ## Setup
 
-```bash
-# from MCQs/
-./dev.sh
-```
+### 1. Supabase
 
-That script will:
+Create a project, then in **Database → Extensions** enable `vector` and `pg_trgm`. In **SQL editor**, paste the contents of `supabase/migrations/001_initial.sql` and run it.
 
-1. Create `backend/.venv` and install Python deps.
-2. Copy `backend/.env.example` → `backend/.env` (edit this to add your `ANTHROPIC_API_KEY`).
-3. Run `npm install` in `frontend/`.
-4. Start `uvicorn` on `:8000` and `next dev` on `:3000`.
-
-Open http://localhost:3000.
-
-### Manual setup
+### 2. Local env
 
 ```bash
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # then edit
-uvicorn app.main:app --reload --port 8000
-
-# in another shell
-cd frontend
+cp .env.example .env.local
+# edit .env.local with your keys
 npm install
-npm run dev
 ```
 
-## How to use
+`.env.local` keys:
 
-1. Sample workbooks live in `samples/` at the repo root — drop `.xls` files there
-   (the project ships with 34 topic files covering C, C#, CSS3, Core/Design-Patterns Java, HTML5, JavaScript, and Python 3).
-   The loader parses them on demand and exposes the catalog at `/api/samples/catalog`.
-2. In the UI, **pick one or more sample topics**. Filter by language or topic
-   name. The "samples per file" control sets how many MCQs from each selected
-   file get fed into the generator prompt (default 4).
-3. Set a **topic** for the new questions, **count**, **difficulty**, and **type**
-   (`general` or `code`). For `code`, pick the **languages**.
-4. Optional: under "additional free-form sample text", paste anything extra to
-   merge with the loaded samples.
-5. **Start workflow** → watch the live event stream → final MCQs render at the bottom.
+| Key | Source |
+|---|---|
+| `ANTHROPIC_API_KEY` | console.anthropic.com |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project settings |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase project settings |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase project settings (secret) |
+| `VOYAGE_API_KEY` | voyageai.com |
+| `EXA_API_KEY` | exa.ai (optional — disables the Exa fallback if missing) |
+| `JUDGE0_RAPIDAPI_KEY` | rapidapi.com/judge0-official/api/judge0-ce |
 
-### Sample .xls schema (legacy Excel)
-
-| Topic | Difficulty Level | Question Text | Answer Choice 1 … 8 | Correct Answer |
-|---|---|---|---|---|
-| free text | `EASY` / `MEDIUM` / `DIFFICULT` | HTML allowed — code MCQs embed snippets via an `<iframe src="…codesnippet?mode=PYTHON&code=URL_ENCODED_SOURCE">` | up to 8, HTML allowed | `Choice1` … `Choice8` |
-
-The loader strips HTML, URL-decodes the iframe-embedded source, and maps `mode`
-to the snippet language (`PYTHON`, `JAVA`, `C`, `CSHARP`, `JAVASCRIPT`, `HTML`, `CSS`).
-
-## What each subagent does
-
-| Role | Where | Job |
-|---|---|---|
-| generator | orchestrator (`/generate-mcqs`) | Produce N MCQs as JSON, mimicking samples. |
-| plag-checker | `mcq-plag-checker` subagent (parallel, haiku) | Search for a distinctive fragment of the question and any code snippet; return `unique` or `flagged`. Budget capped by `quality`: fast=1 search, balanced=2, highest=3. |
-| revamper | orchestrator | Rewrite a flagged MCQ — keep the concept and difficulty, change the surface form (numbers, identifiers, scenario). For code MCQs, rewrite the snippet too. |
-| verifier | orchestrator (inline bash) | For code MCQs: write the snippet to `runs/<id>/verify/`, run all snippets in parallel via `scripts/run_code.py`, compare stdout to `options[correct_index]`. Reassigns `correct_index` if actual matches another option, or regenerates distractors around the true output. |
-
-## Streamed events
-
-The SSE channel emits one event per workflow step. Useful types:
-
-- `workflow_start`, `phase`, `generated`
-- `question_start`, `plag_check`, `plag_unique`, `plag_flagged`, `plag_gave_up`, `revamping`
-- `code_verify`, `code_verified`
-- `question_done`, `workflow_done`
-- `warn`, `error`
-
-## ⚠ Sandboxing
-
-Code is executed **directly on the host** (you chose "no sandbox"). This is
-fine for local dev with your own machine, but **never** expose the backend to
-the public internet — a flagged MCQ revamp could in principle yield arbitrary
-code, and the verifier will run it.
-
-To harden later: swap `backend/app/compiler/runner.py` for a Docker-based runner.
-
-## Configuration
-
-Edit `backend/.env`:
+Optional tuning:
 
 | Key | Default | Notes |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | required |
-| `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | any Claude model |
-| `BACKEND_PORT` | `8000` | |
-| `FRONTEND_ORIGIN` | `http://localhost:3000` | CORS |
-| `PYTHON_BIN`/`NODE_BIN`/`JAVAC_BIN`/`JAVA_BIN`/`CPP_BIN` | PATH defaults | pin toolchains |
-| `CODE_RUN_TIMEOUT` | `8` | seconds per compile/run step |
+| `ANTHROPIC_MODEL_FAST` | `claude-haiku-4-5` | per-quality model override |
+| `ANTHROPIC_MODEL_BALANCED` | `claude-sonnet-4-6` | |
+| `ANTHROPIC_MODEL_HIGHEST` | `claude-opus-4-7` | |
+| `PLAG_COSINE_THRESHOLD` | `0.86` | similarity ≥ this → flagged |
+| `PLAG_EXA_FALLBACK_LOW` | `0.55` | uncertain band lower bound |
+| `PLAG_EXA_FALLBACK_HIGH` | `0.86` | uncertain band upper bound |
 
-## Health check
+### 3. Seed samples
+
+Imports the `.xls` files under `../samples/` into the `samples` table:
 
 ```bash
-curl http://localhost:8000/api/health
+npm run seed:samples
 ```
 
-Returns model, whether the API key is set, and which language toolchains are
-discoverable on PATH.
+### 4. Build plag corpus (one-time)
+
+Scrapes Sanfoundry, embeds each question with Voyage, inserts into `plag_corpus`. Takes a while; costs ~$1.50 in embeddings.
+
+```bash
+npm run build:corpus
+```
+
+After it finishes, in Supabase SQL editor run:
+
+```sql
+ANALYZE plag_corpus;
+```
+
+(Refreshes the ivfflat index statistics.)
+
+### 5. Run dev server
+
+```bash
+npm run dev
+# open http://localhost:3000
+```
+
+Check `/api/health` to see which env vars are wired up.
+
+## Deploy to Vercel
+
+1. Push the repo to GitHub.
+2. In Vercel → New Project → import the repo. Root Directory stays as `.` (the repo root).
+3. Add every key from `.env.example` as a Vercel env var (Production + Preview).
+4. Deploy.
+
+`vercel.json` sets `maxDuration: 300` on `/api/generate`. On Vercel **Hobby** the cap is 60s — generate ≤ 10 MCQs per request on that tier. On **Pro** the cap is 300s — single requests up to ~50 MCQs are fine.
+
+## API
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | env-var sanity check |
+| `GET` | `/api/samples` | sample-file catalog |
+| `POST` | `/api/generate` | start a run; SSE response streams events |
+| `GET` | `/api/runs/{id}` | run + mcqs snapshot |
+| `GET` | `/api/runs/{id}/final` | authoritative final MCQ list (SSE-drop fallback) |
+
+### SSE event types
+
+`workflow_start`, `phase`, `generated`, `question_start`, `plag_check`, `plag_unique`, `plag_flagged`, `plag_gave_up`, `revamping`, `code_verify`, `code_verified`, `question_done`, `workflow_done`, `warn`, `error`.
+
+## Schema (high level)
+
+- `samples` — ground-truth MCQs imported from .xls.
+- `plag_corpus` — scraped public MCQs, embedded for kNN.
+- `runs` — one row per generation request.
+- `mcqs` — generated MCQs with plag + verify state.
+- `run_events` — replay log for each SSE event.
+- `match_plag_corpus(query_embedding, match_count, filter_language)` — RPC used by the plag checker.
+
+## What's NOT included in v1
+
+- Auth / multi-tenant — single-user; deploy behind Vercel Password if exposing.
+- Long-running background jobs — large batches still go in-band; if you need "click once, get 100 MCQs", upgrade to Vercel Pro for 300s functions or move generation to a Supabase Edge Function + Realtime job queue.
+- Sandboxed code execution beyond Judge0's supported languages (csharp/html/css are skipped or partially supported).
+
+## Repo layout
+
+```
+.
+├── app/
+│   ├── api/
+│   │   ├── generate/route.ts       # POST → SSE stream
+│   │   ├── health/route.ts
+│   │   ├── runs/[id]/route.ts
+│   │   ├── runs/[id]/final/route.ts
+│   │   └── samples/route.ts
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/                     # ConfigDialog, MCQCard, RunView, SamplesList, Timeline + shadcn ui/
+├── lib/
+│   ├── anthropic.ts                # client + JSON extraction
+│   ├── api.ts                      # browser-side fetch helpers
+│   ├── env.ts                      # env var accessors
+│   ├── exa.ts                      # plag fallback
+│   ├── judge0.ts                   # code execution
+│   ├── plag.ts                     # hybrid plag check
+│   ├── prompts.ts                  # system + user + revamp prompts
+│   ├── runner.ts                   # orchestrator
+│   ├── sse.ts                      # SSE helper for Route Handlers
+│   ├── supabase.ts                 # service-role client
+│   ├── types.ts
+│   ├── utils.ts
+│   ├── verify.ts                   # apply Judge0 verdict
+│   └── voyage.ts                   # embeddings
+├── samples/                        # legacy .xls workbooks, seeded into Supabase
+├── scripts/
+│   ├── build-corpus.ts             # scrape + embed plag corpus
+│   └── seed-samples.ts             # .xls → samples table
+├── supabase/migrations/001_initial.sql
+└── vercel.json
+```

@@ -1,35 +1,10 @@
-# OS
-.DS_Store
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-
-# Node
 node_modules/
 .next/
-.vercel
-*.tsbuildinfo
-.tsbuildinfo
-
-# Env / secrets
 .env
 .env.local
 .env.*.local
-backend/.env
-
-# Generated artifacts from local pipeline runs
-runs/
-generated/
-generated_mcqs.csv
-preview.html
-
-# Editor / tools
 *.log
-.claude/projects/
-
-# Misc
---help/
+.DS_Store
+.vercel
+*.tsbuildinfo
+next-env.d.ts

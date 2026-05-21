@@ -16,7 +16,7 @@ import { join, basename } from "path";
 import * as XLSX from "xlsx";
 import { createClient } from "@supabase/supabase-js";
 
-const SAMPLES_DIR = join(process.cwd(), "..", "samples");
+const SAMPLES_DIR = join(process.cwd(), "samples");
 
 type Difficulty = "easy" | "medium" | "hard";
 type Language =
