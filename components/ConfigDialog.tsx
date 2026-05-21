@@ -1,17 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Braces, Check, Code2, Eye, Gauge, Play, RefreshCcw, Sparkles, Zap } from "lucide-react";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  BookOpen, Braces, Check, Code2, Eye, Gauge, Minus, Play, Plus, RefreshCcw, Sparkles, X, Zap,
+} from "lucide-react";
+import {
+  Dialog, DialogContent, DialogTitle, DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { fetchCatalog, fetchTopic } from "@/lib/api";
 import type {
@@ -33,17 +31,26 @@ const QUALITY_BY_DIFFICULTY: Record<Difficulty, Quality> = {
   hard: "balanced",
 };
 
-const QUALITY_LABEL: Record<Quality, string> = {
-  fast: "Fast · Haiku",
-  balanced: "Balanced · Sonnet",
-  highest: "Highest · Opus",
-};
+// Anthropic accent — used only on the selected model chip.
+const CLAUDE_ACCENT = "#d97757";
+
+const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+];
+
+const QUALITY_OPTIONS: { value: Quality; label: string; sub: string; Icon: typeof Zap }[] = [
+  { value: "fast", label: "Haiku", sub: "Fast", Icon: Zap },
+  { value: "balanced", label: "Sonnet", sub: "Balanced", Icon: Gauge },
+  { value: "highest", label: "Opus", sub: "Highest", Icon: Sparkles },
+];
 
 const DEFAULT_SAMPLES_PER_FILE = 4;
 const DEFAULT_MAX_REVAMP = 3;
 
 export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPreview }: Props) {
-  const [topic, setTopic] = useState("");
+  const [batchName, setBatchName] = useState("");
   const [count, setCount] = useState(5);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [quality, setQuality] = useState<Quality>("fast");
@@ -61,6 +68,7 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
 
   useEffect(() => {
     if (!open) return;
+    setBatchName("");
     setNegativePrompt("");
     setCustomPrompt("");
     setCustomPromptTouched(false);
@@ -90,22 +98,20 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
     if (!qualityTouched) setQuality(QUALITY_BY_DIFFICULTY[d]);
   }
 
-  const builtVisible = useMemo(() => {
-    return buildVisible({
-      count,
-      topic,
-      difficulty,
-      mcqType: detectedType,
-      languages: detectedLang ? [detectedLang as Language] : [],
-      negativePrompt,
-    });
-  }, [count, topic, difficulty, detectedType, detectedLang, negativePrompt]);
+  const builtVisible = useMemo(() => buildVisible({
+    count,
+    topic: batchName,
+    difficulty,
+    mcqType: detectedType,
+    languages: detectedLang ? [detectedLang as Language] : [],
+    negativePrompt,
+  }), [count, batchName, difficulty, detectedType, detectedLang, negativePrompt]);
 
   const promptValue = customPromptTouched ? customPrompt : builtVisible;
 
   function submit() {
-    if (!topic.trim()) {
-      alert("Set a topic for the new questions.");
+    if (!batchName.trim()) {
+      alert("Name this batch (e.g. \"Python list slicing\").");
       return;
     }
     const languages: Language[] = detectedType === "code" && detectedLang
@@ -113,7 +119,7 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
       : [];
     onStart({
       count,
-      topic,
+      topic: batchName,
       difficulty,
       mcq_type: detectedType,
       languages,
@@ -129,198 +135,305 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:!max-w-[820px]">
-        <DialogHeader className="shrink-0 space-y-1.5 border-b px-7 py-5">
-          <DialogTitle>Configure generation</DialogTitle>
-          <DialogDescription>
-            From {sampleFiles.length} sample topic{sampleFiles.length === 1 ? "" : "s"}.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="scrollbar-thin flex-1 min-h-0 overflow-y-auto px-7 py-6">
-          <div className="space-y-6">
-            {/* topic */}
-            <div className="space-y-2">
-              <Label htmlFor="topic">Topic for new questions</Label>
-              <Input
-                id="topic"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="e.g. Python list slicing and indexing"
-                className="h-11"
-                autoFocus
-              />
-            </div>
-
-            {/* count / difficulty / quality */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="count">Count</Label>
-                <Input
-                  id="count"
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={count}
-                  onChange={(e) => setCount(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
-                  className="h-11 text-center text-base font-medium"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Difficulty</Label>
-                <Select value={difficulty} onValueChange={(v) => changeDifficulty(v as Difficulty)}>
-                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="easy">easy</SelectItem>
-                    <SelectItem value="medium">medium</SelectItem>
-                    <SelectItem value="hard">hard</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5">
-                  Quality
-                  {!qualityTouched && (
-                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">auto</span>
-                  )}
-                </Label>
-                <Select
-                  value={quality}
-                  onValueChange={(v) => { setQuality(v as Quality); setQualityTouched(true); }}
-                >
-                  <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fast">
-                      <span className="inline-flex items-center gap-2"><Zap className="size-3.5" />{QUALITY_LABEL.fast}</span>
-                    </SelectItem>
-                    <SelectItem value="balanced">
-                      <span className="inline-flex items-center gap-2"><Gauge className="size-3.5" />{QUALITY_LABEL.balanced}</span>
-                    </SelectItem>
-                    <SelectItem value="highest">
-                      <span className="inline-flex items-center gap-2"><Sparkles className="size-3.5" />{QUALITY_LABEL.highest}</span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* detected type + language */}
-            <div className="rounded-md border bg-muted/30 px-4 py-3">
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Detected from samples
+      <DialogContent
+        showCloseButton={false}
+        className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:!max-w-[960px]"
+      >
+        {/* HEADER — topic + detected type, no generic title */}
+        <header className="shrink-0 border-b px-7 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="sr-only">Configure generation</DialogTitle>
+              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                Source sample
               </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={detectedType === "code" ? "default" : "secondary"}>
-                  {detectedType === "code"
-                    ? <><Braces className="size-3" /> code</>
-                    : <><BookOpen className="size-3" /> general</>}
-                </Badge>
-                {detectedType === "code" && detectedLang && (
-                  <Badge variant="outline" className="font-mono">
-                    <Code2 className="size-3" /> {detectedLang}
-                  </Badge>
+              <p className="mt-1 truncate text-base font-semibold tracking-tight">
+                {meta?.topic ?? filename ?? "—"}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {meta && (
+                  <>
+                    <Badge variant="outline" className="font-mono">
+                      {meta.count} samples
+                    </Badge>
+                    <Badge variant={detectedType === "code" ? "default" : "secondary"}>
+                      {detectedType === "code"
+                        ? <><Braces className="size-3" /> code</>
+                        : <><BookOpen className="size-3" /> general</>}
+                    </Badge>
+                    {detectedType === "code" && detectedLang && (
+                      <Badge variant="outline" className="font-mono">
+                        <Code2 className="size-3" /> {detectedLang}
+                      </Badge>
+                    )}
+                  </>
                 )}
-                <span className="ml-auto text-[11px] text-muted-foreground">
-                  Inferred from this sample file — no override needed.
-                </span>
               </div>
             </div>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Close">
+                <X />
+              </Button>
+            </DialogClose>
+          </div>
+        </header>
 
-            {/* sample preview */}
-            {sampleMcq && (
+        {/* BODY — 2 cols */}
+        <div className="grid flex-1 min-h-0 grid-cols-1 overflow-hidden lg:grid-cols-[360px_1fr]">
+          {/* LEFT — config */}
+          <section className="scrollbar-thin min-h-0 overflow-y-auto border-b px-7 py-6 lg:border-b-0 lg:border-r">
+            <div className="space-y-6">
+              {/* batch name */}
+              <Field label="Batch name">
+                <Input
+                  value={batchName}
+                  onChange={(e) => setBatchName(e.target.value)}
+                  placeholder="e.g. Python list slicing"
+                  className="h-10"
+                  autoFocus
+                />
+              </Field>
+
+              {/* count counter */}
+              <Field label="Questions">
+                <Counter value={count} min={1} max={50} onChange={setCount} />
+              </Field>
+
+              {/* difficulty toggle */}
+              <Field label="Difficulty">
+                <SegmentedControl
+                  value={difficulty}
+                  onChange={(v) => changeDifficulty(v)}
+                  options={DIFFICULTY_OPTIONS}
+                />
+              </Field>
+
+              {/* quality (Claude model) — Claude coral on selected */}
+              <Field
+                label="Model"
+                hint={!qualityTouched ? "auto" : undefined}
+              >
+                <div className="grid grid-cols-3 gap-1.5 rounded-md border bg-card p-0.5">
+                  {QUALITY_OPTIONS.map(({ value, label, sub, Icon }) => {
+                    const active = quality === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => { setQuality(value); setQualityTouched(true); }}
+                        className={cn(
+                          "group flex flex-col items-center gap-0.5 rounded-sm px-2 py-2 transition-colors",
+                          active
+                            ? "text-white shadow-sm"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                        style={active ? { backgroundColor: CLAUDE_ACCENT } : undefined}
+                      >
+                        <Icon className={cn("size-3.5", active ? "text-white" : "text-muted-foreground")} />
+                        <span className="text-xs font-semibold">{label}</span>
+                        <span className={cn(
+                          "text-[9px] uppercase tracking-widest",
+                          active ? "text-white/85" : "text-muted-foreground/70",
+                        )}>
+                          {sub}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+            </div>
+          </section>
+
+          {/* RIGHT — sample + prompts */}
+          <section className="scrollbar-thin min-h-0 overflow-y-auto bg-muted/10 px-7 py-6">
+            <div className="space-y-6">
+              {/* sample preview */}
+              {sampleMcq && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Sample from this topic</Label>
+                    {filename && (
+                      <Button variant="outline" size="xs" onClick={() => onPreview(filename)}>
+                        <Eye />
+                        View all
+                      </Button>
+                    )}
+                  </div>
+                  <SamplePreviewCard mcq={sampleMcq} />
+                </div>
+              )}
+
+              {/* prompt */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Sample from this topic</Label>
-                  {filename && (
-                    <Button variant="outline" size="xs" onClick={() => onPreview(filename)}>
-                      <Eye />
-                      View all
+                  <Label className="flex items-center gap-1.5">
+                    Prompt
+                    {customPromptTouched && (
+                      <Badge variant="outline" className="text-[10px]">edited</Badge>
+                    )}
+                  </Label>
+                  {customPromptTouched && (
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => { setCustomPrompt(""); setCustomPromptTouched(false); }}
+                    >
+                      <RefreshCcw />
+                      Reset
                     </Button>
                   )}
                 </div>
-                <SamplePreviewCard mcq={sampleMcq} />
+                <textarea
+                  value={promptValue}
+                  onChange={(e) => { setCustomPrompt(e.target.value); setCustomPromptTouched(true); }}
+                  rows={7}
+                  className="scrollbar-thin w-full rounded-md border bg-card px-3 py-2 font-mono text-[11px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Sent after the sample MCQs. JSON-output rules in the system prompt apply regardless.
+                </p>
               </div>
-            )}
 
-            {/* prompt preview / edit */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="prompt" className="flex items-center gap-1.5">
-                  Prompt
-                  {customPromptTouched && (
-                    <Badge variant="outline" className="text-[10px]">edited</Badge>
-                  )}
-                </Label>
-                {customPromptTouched && (
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => { setCustomPrompt(""); setCustomPromptTouched(false); }}
-                  >
-                    <RefreshCcw />
-                    Reset
-                  </Button>
-                )}
+              {/* negative prompt */}
+              <div className="space-y-2">
+                <Label>Avoid (negative prompt)</Label>
+                <textarea
+                  value={negativePrompt}
+                  onChange={(e) => setNegativePrompt(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. don't use list.append; avoid questions about map/filter/reduce"
+                  className="scrollbar-thin w-full rounded-md border bg-card px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
+                />
               </div>
-              <textarea
-                id="prompt"
-                value={promptValue}
-                onChange={(e) => { setCustomPrompt(e.target.value); setCustomPromptTouched(true); }}
-                rows={6}
-                className="scrollbar-thin w-full rounded-md border bg-card px-3 py-2 font-mono text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Sent after the sample MCQs from this topic. Edit freely; the JSON-output rules in the system prompt are kept regardless.
-              </p>
             </div>
-
-            {/* negative prompt */}
-            <div className="space-y-2">
-              <Label htmlFor="negative">Negative prompt (things to avoid)</Label>
-              <textarea
-                id="negative"
-                value={negativePrompt}
-                onChange={(e) => setNegativePrompt(e.target.value)}
-                rows={3}
-                placeholder="e.g. don't use list.append; avoid questions about map/filter/reduce"
-                className="scrollbar-thin w-full rounded-md border bg-card px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
-              />
-            </div>
-          </div>
+          </section>
         </div>
 
-        <DialogFooter className="shrink-0 border-t px-7 py-4">
+        {/* FOOTER */}
+        <footer className="flex shrink-0 items-center justify-end gap-2 border-t bg-card/30 px-7 py-3">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} size="lg">
             <Play />
             Start workflow
           </Button>
-        </DialogFooter>
+        </footer>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Building blocks
+// -----------------------------------------------------------------------------
+
+function Label({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <span className={cn("text-[10px] font-semibold uppercase tracking-widest text-muted-foreground", className)}>
+      {children}
+    </span>
+  );
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between">
+        <Label>{label}</Label>
+        {hint && (
+          <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
+            {hint}
+          </span>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Counter({
+  value, min, max, onChange,
+}: { value: number; min: number; max: number; onChange: (n: number) => void }) {
+  const dec = () => onChange(Math.max(min, value - 1));
+  const inc = () => onChange(Math.min(max, value + 1));
+  return (
+    <div className="inline-flex h-10 items-stretch overflow-hidden rounded-md border bg-card">
+      <button
+        type="button"
+        onClick={dec}
+        disabled={value <= min}
+        className="grid w-10 place-items-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+        aria-label="decrease"
+      >
+        <Minus className="size-3.5" />
+      </button>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(Math.max(min, Math.min(max, parseInt(e.target.value) || min)))}
+        min={min}
+        max={max}
+        className="w-14 border-x bg-transparent text-center text-base font-semibold tabular-nums outline-none"
+      />
+      <button
+        type="button"
+        onClick={inc}
+        disabled={value >= max}
+        className="grid w-10 place-items-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+        aria-label="increase"
+      >
+        <Plus className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function SegmentedControl<T extends string>({
+  value, onChange, options,
+}: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
+  return (
+    <div className="grid grid-cols-3 gap-1 rounded-md border bg-card p-0.5">
+      {options.map((opt) => {
+        const active = value === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "rounded-sm py-2 text-xs font-semibold uppercase tracking-widest transition-colors",
+              active
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
 function SamplePreviewCard({ mcq }: { mcq: SampleTopicMCQ }) {
   return (
     <div className="overflow-hidden rounded-md border bg-card">
-      <div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/30 px-3 py-2">
-        <Badge variant="secondary">{mcq.type}</Badge>
-        <Badge variant="outline" className="font-mono">{mcq.difficulty}</Badge>
+      <div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/40 px-3 py-2">
+        <Badge variant="outline" className="font-mono text-[10px]">{mcq.difficulty}</Badge>
         {mcq.language && (
-          <Badge variant="outline" className="font-mono">
+          <Badge variant="outline" className="font-mono text-[10px]">
             <Code2 className="size-3" /> {mcq.language}
           </Badge>
         )}
       </div>
-      <div className="space-y-3 p-4">
-        <p className="whitespace-pre-wrap text-xs leading-relaxed">{mcq.question}</p>
+      <div className="space-y-3 p-3">
+        <p className="whitespace-pre-wrap text-[12px] leading-relaxed">{mcq.question}</p>
         {mcq.code?.trim() && (
-          <pre className="scrollbar-thin overflow-x-auto rounded-md border bg-muted/40 p-2 text-[11px] leading-relaxed">
+          <pre className="scrollbar-thin overflow-x-auto rounded-md border bg-muted/40 p-2 text-[10.5px] leading-relaxed">
             <code className="font-mono">{mcq.code}</code>
           </pre>
         )}
-        <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
           {mcq.options.map((opt, i) => {
             const correct = i === mcq.correct_index;
             const letter = String.fromCharCode(65 + i);
@@ -328,7 +441,7 @@ function SamplePreviewCard({ mcq }: { mcq: SampleTopicMCQ }) {
               <li
                 key={i}
                 className={cn(
-                  "flex items-start gap-2 rounded-md border px-2 py-1.5 text-[11px]",
+                  "flex items-start gap-1.5 rounded-md border px-2 py-1.5 text-[11px]",
                   correct
                     ? "border-emerald-500/40 bg-emerald-500/5"
                     : "border-border bg-card text-muted-foreground",
@@ -373,7 +486,7 @@ function buildVisible(args: {
     : "";
   return [
     `Generate ${args.count} novel MCQs.`,
-    `Topic: ${args.topic || "<set a topic above>"}`,
+    `Topic: ${args.topic || "<name this batch above>"}`,
     `Difficulty: ${args.difficulty}`,
     `Type: ${args.mcqType}`,
     langs,

@@ -43,7 +43,10 @@ export function TopicModal({ filename, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="flex h-[85vh] max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:!max-w-3xl">
+      <DialogContent
+        showCloseButton={true}
+        className="flex h-[85vh] max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:!max-w-3xl"
+      >
         <DialogHeader className="shrink-0 space-y-2 border-b px-6 py-4">
           <DialogTitle className="font-mono text-sm uppercase tracking-wider">
             {filename || "—"}
