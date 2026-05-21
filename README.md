@@ -104,7 +104,7 @@ Check `/api/health` to see which env vars are wired up.
 3. Add every key from `.env.example` as a Vercel env var (Production + Preview).
 4. Deploy.
 
-`vercel.json` sets `maxDuration: 300` on `/api/generate`. On Vercel **Hobby** the cap is 60s — generate ≤ 10 MCQs per request on that tier. On **Pro** the cap is 300s — single requests up to ~50 MCQs are fine.
+`app/api/generate/route.ts` sets `export const maxDuration = 300` inline (the Next.js App Router pattern). On Vercel **Hobby** the cap is 60s — generate ≤ 10 MCQs per request on that tier. On **Pro** the cap is 300s — single requests up to ~50 MCQs are fine.
 
 ## API
 
@@ -169,6 +169,5 @@ Check `/api/health` to see which env vars are wired up.
 ├── scripts/
 │   ├── build-corpus.ts             # scrape + embed plag corpus
 │   └── seed-samples.ts             # .xls → samples table
-├── supabase/migrations/001_initial.sql
-└── vercel.json
+└── supabase/migrations/001_initial.sql
 ```
