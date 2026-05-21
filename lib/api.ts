@@ -1,8 +1,14 @@
-import type { GenerateRequest, SampleCatalog, StreamEvent } from "./types";
+import type { GenerateRequest, SampleCatalog, SampleTopic, StreamEvent } from "./types";
 
 export async function fetchCatalog(): Promise<SampleCatalog> {
   const res = await fetch("/api/samples");
   if (!res.ok) throw new Error(`catalog failed: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchTopic(filename: string): Promise<SampleTopic> {
+  const res = await fetch(`/api/samples/${encodeURIComponent(filename)}`);
+  if (!res.ok) throw new Error(`topic fetch failed: ${res.status}`);
   return res.json();
 }
 

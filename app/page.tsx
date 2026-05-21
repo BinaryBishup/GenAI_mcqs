@@ -5,11 +5,13 @@ import { Cpu } from "lucide-react";
 import { SamplesList } from "@/components/SamplesList";
 import { ConfigDialog } from "@/components/ConfigDialog";
 import { RunView } from "@/components/RunView";
+import { TopicSheet } from "@/components/TopicSheet";
 import { startGeneration, fetchFinal } from "@/lib/api";
 import type { GenerateRequest, MCQ, StreamEvent } from "@/lib/types";
 
 export default function Page() {
   const [sampleFile, setSampleFile] = useState<string>("");
+  const [previewFile, setPreviewFile] = useState<string>("");
   const [configOpen, setConfigOpen] = useState(false);
   const [config, setConfig] = useState<GenerateRequest | null>(null);
 
@@ -104,14 +106,20 @@ export default function Page() {
             </div>
           </header>
           <main className="flex-1 min-h-0">
-            <SamplesList selected={sampleFile} onSelect={pickSample} />
+            <SamplesList
+              selected={sampleFile}
+              onSelect={pickSample}
+              onPreview={setPreviewFile}
+            />
           </main>
           <ConfigDialog
             open={configOpen}
             onOpenChange={setConfigOpen}
             sampleFiles={sampleFile ? [sampleFile] : []}
             onStart={start}
+            onPreview={setPreviewFile}
           />
+          <TopicSheet filename={previewFile} onClose={() => setPreviewFile("")} />
         </>
       )}
     </div>

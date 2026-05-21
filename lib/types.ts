@@ -41,6 +41,10 @@ export interface GenerateRequest {
   samples_per_file: number;
   max_revamp_attempts: number;
   quality: Quality;
+  /** Replaces the auto-built user prompt. Leave empty to use the default. */
+  custom_prompt?: string;
+  /** Appended as an "Avoid:" block in the prompt. */
+  negative_prompt?: string;
 }
 
 export interface SampleCatalogItem {
@@ -50,6 +54,26 @@ export interface SampleCatalogItem {
   languages: Language[];
   difficulties: Difficulty[];
   has_code: boolean;
+  primary_type: MCQType;
+  primary_language: Language | null;
+}
+
+export interface SampleTopic {
+  filename: string;
+  count: number;
+  by_difficulty: Record<Difficulty, SampleTopicMCQ[]>;
+}
+
+export interface SampleTopicMCQ {
+  id: string;
+  topic: string;
+  difficulty: Difficulty;
+  type: MCQType;
+  language: Language | null;
+  question: string;
+  options: string[];
+  correct_index: number;
+  code: string | null;
 }
 
 export interface SampleCatalog {

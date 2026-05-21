@@ -14,9 +14,11 @@ interface Props {
   selected: string;
   /** Pick a sample file. */
   onSelect: (filename: string) => void;
+  /** Open the topic browser for this filename. */
+  onPreview: (filename: string) => void;
 }
 
-export function SamplesList({ selected, onSelect }: Props) {
+export function SamplesList({ selected, onSelect, onPreview }: Props) {
   const [items, setItems] = useState<SampleCatalogItem[] | null>(null);
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(false);
@@ -122,7 +124,15 @@ export function SamplesList({ selected, onSelect }: Props) {
                             )}
                           </div>
                         </td>
-                        <td className="py-3 text-right font-mono text-xs">{i.count}</td>
+                        <td
+                          className="py-3 text-right font-mono text-xs"
+                          onClick={(e) => { e.stopPropagation(); onPreview(i.filename); }}
+                        >
+                          <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 hover:bg-muted hover:text-foreground">
+                            {i.count}
+                            <ChevronRight className="size-3.5 opacity-60" />
+                          </span>
+                        </td>
                         <td className="py-3 pr-6 text-right text-muted-foreground">
                           <ChevronRight className="ml-auto size-4 opacity-40" />
                         </td>

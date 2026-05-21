@@ -185,6 +185,8 @@ async function generate(req: GenerateRequest, samplesBlock: string, model: strin
     languages: req.languages,
     samplesBlock,
     freeFormSamples: req.samples_raw,
+    customVisible: req.custom_prompt,
+    negativePrompt: req.negative_prompt,
   });
 
   const msg = await anthropic().messages.create({
