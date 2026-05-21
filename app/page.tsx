@@ -5,7 +5,7 @@ import { Cpu } from "lucide-react";
 import { SamplesList } from "@/components/SamplesList";
 import { ConfigDialog } from "@/components/ConfigDialog";
 import { RunView } from "@/components/RunView";
-import { TopicSheet } from "@/components/TopicSheet";
+import { TopicModal } from "@/components/TopicModal";
 import { startGeneration, fetchFinal } from "@/lib/api";
 import type { GenerateRequest, MCQ, StreamEvent } from "@/lib/types";
 
@@ -119,7 +119,7 @@ export default function Page() {
             onStart={start}
             onPreview={setPreviewFile}
           />
-          <TopicSheet filename={previewFile} onClose={() => setPreviewFile("")} />
+          <TopicModal filename={previewFile} onClose={() => setPreviewFile("")} />
         </>
       )}
     </div>

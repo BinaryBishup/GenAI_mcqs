@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { Check, Loader2, Code2 } from "lucide-react";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
-} from "@/components/ui/sheet";
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { fetchTopic } from "@/lib/api";
@@ -18,7 +18,7 @@ interface Props {
 
 const DIFFICULTY_ORDER: Difficulty[] = ["easy", "medium", "hard"];
 
-export function TopicSheet({ filename, onClose }: Props) {
+export function TopicModal({ filename, onClose }: Props) {
   const open = !!filename;
   const [data, setData] = useState<SampleTopic | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,18 +42,17 @@ export function TopicSheet({ filename, onClose }: Props) {
   const total = data?.count ?? 0;
 
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent
-        side="right"
-        className="w-full overflow-hidden p-0 sm:max-w-2xl"
-      >
-        <SheetHeader className="border-b px-6 py-4">
-          <SheetTitle className="font-mono text-sm">{filename || "—"}</SheetTitle>
-          <SheetDescription>
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="flex h-[85vh] max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:!max-w-3xl">
+        <DialogHeader className="shrink-0 space-y-2 border-b px-6 py-4">
+          <DialogTitle className="font-mono text-sm uppercase tracking-wider">
+            {filename || "—"}
+          </DialogTitle>
+          <DialogDescription>
             {loading ? "Loading…" : `${total} sample MCQ${total === 1 ? "" : "s"} in this topic.`}
-          </SheetDescription>
+          </DialogDescription>
           {data && data.count > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 pt-1">
               <DifficultyChip
                 label="all"
                 count={total}
@@ -75,7 +74,7 @@ export function TopicSheet({ filename, onClose }: Props) {
               })}
             </div>
           )}
-        </SheetHeader>
+        </DialogHeader>
 
         <div className="scrollbar-thin flex-1 min-h-0 overflow-y-auto px-6 py-4">
           {loading && (
@@ -106,8 +105,8 @@ export function TopicSheet({ filename, onClose }: Props) {
             </div>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -118,7 +117,7 @@ function DifficultyChip({
     <button
       onClick={onClick}
       className={cn(
-        "rounded-md border px-2.5 py-1 text-[11px] font-mono uppercase tracking-widest transition-colors",
+        "rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest transition-colors",
         active
           ? "border-primary bg-primary text-primary-foreground"
           : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
