@@ -1,4 +1,5 @@
 import type { MCQ } from "./types";
+import { buildMettlWorkbook } from "./mettl-export";
 
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 60);
@@ -51,11 +52,22 @@ function trigger(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 500);
 }
 
-export function downloadMCQs(mcqs: MCQ[], format: "json" | "csv", topic: string) {
+export type DownloadFormat = "json" | "csv" | "mettl";
+
+export function downloadMCQs(mcqs: MCQ[], format: DownloadFormat, topic: string) {
   const base = `mcqs-${slugify(topic) || "export"}-${timestamp()}`;
   if (format === "json") {
     trigger(new Blob([JSON.stringify(mcqs, null, 2)], { type: "application/json" }), `${base}.json`);
-  } else {
-    trigger(new Blob([toCsv(mcqs)], { type: "text/csv;charset=utf-8" }), `${base}.csv`);
+    return;
   }
+  if (format === "csv") {
+    trigger(new Blob([toCsv(mcqs)], { type: "text/csv;charset=utf-8" }), `${base}.csv`);
+    return;
+  }
+  // mettl: .xls bulk-upload file matching the official template.
+  const bytes = buildMettlWorkbook(mcqs, { topicOverride: topic });
+  trigger(
+    new Blob([bytes], { type: "application/vnd.ms-excel" }),
+    `mettl-bulk-${slugify(topic) || "export"}-${timestamp()}.xls`,
+  );
 }

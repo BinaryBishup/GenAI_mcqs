@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  ArrowLeft, Download, FileJson, FileSpreadsheet, Loader2, Sparkles, Activity,
+  ArrowLeft, Download, FileJson, FileSpreadsheet, FileUp, Loader2, Sparkles, Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +85,10 @@ export function RunView({ config, events, results, running, error, onReset }: Pr
               <DropdownMenuItem onClick={() => downloadMCQs(cleanResults, "csv", config.topic)}>
                 <FileSpreadsheet />
                 CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadMCQs(cleanResults, "mettl", config.topic)}>
+                <FileUp />
+                Mettl bulk-upload (.xls)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
