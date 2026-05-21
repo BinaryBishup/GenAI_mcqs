@@ -2,27 +2,54 @@ import * as fuzz from "fuzzball";
 import { supabaseAdmin } from "./supabase";
 import { env } from "./env";
 import { normalizeText } from "./utils";
+import { tavilySearch, TavilyResult } from "./tavily";
 import type { MCQ, PlagMatch, PlagVerdict } from "./types";
 
 /**
- * Plag check — exact / near-exact match against the local scraped corpus.
+ * Plag check — exact / near-exact match.
  *
- * Two-stage pipeline:
- *   1. Postgres `match_plag_trgm()` — trigram-similarity prefilter using the
- *      existing GIN(question_norm gin_trgm_ops) index. Cheap, returns top-K.
- *   2. fuzzball `token_set_ratio` — precise re-ranking on the candidates.
- *      Token-set ratio is tolerant of word reordering but not of conceptual
- *      paraphrasing, which is exactly what we want.
+ * Two signals run in parallel:
+ *   1. Local corpus — Postgres `match_plag_trgm()` (pg_trgm prefilter) then
+ *      `fuzzball` token_set_ratio re-rank. Catches stuff we've scraped.
+ *   2. Web — Tavily search on the question text; each hit's title+content is
+ *      compared against the question with token_set_ratio. Catches stuff
+ *      that's on the public web but not in our scraped corpus.
  *
- * Threshold: PLAG_FUZZ_THRESHOLD (default 0.85). At 0.85 the check accepts
- * minor edits ("What is" → "Which is", swapped identifier names) and rejects
- * near-verbatim copies.
+ * If either signal scores ≥ PLAG_FUZZ_THRESHOLD (default 0.85), the MCQ is
+ * flagged. Tavily is skipped when TAVILY_API_KEY is missing.
  */
 export async function checkPlag(mcq: MCQ): Promise<PlagVerdict> {
-  const supa = supabaseAdmin();
   const queryNorm = normalizeText(mcq.question);
   const language = mcq.snippet?.language ?? null;
+  const threshold = env.plagFuzzThreshold();
 
+  const [corpusMatches, webMatches] = await Promise.all([
+    checkCorpus(queryNorm, language),
+    env.tavilyKey() ? checkWeb(mcq.question, queryNorm) : Promise.resolve([] as PlagMatch[]),
+  ]);
+
+  const corpusFlagged = corpusMatches[0]?.similarity >= threshold;
+  const webFlagged = webMatches[0]?.similarity >= threshold;
+  const flagged = corpusFlagged || webFlagged;
+
+  const usedWeb = env.tavilyKey() !== null;
+  const method: PlagVerdict["method"] =
+    usedWeb && corpusMatches.length > 0 ? "corpus+web" :
+    usedWeb ? "web" : "corpus";
+
+  // Merge + de-dupe by URL, keep highest similarity.
+  const byUrl = new Map<string, PlagMatch>();
+  for (const m of [...corpusMatches, ...webMatches]) {
+    const prev = byUrl.get(m.url);
+    if (!prev || m.similarity > prev.similarity) byUrl.set(m.url, m);
+  }
+  const matches = [...byUrl.values()].sort((a, b) => b.similarity - a.similarity).slice(0, 5);
+
+  return { verdict: flagged ? "flagged" : "unique", matches, method };
+}
+
+async function checkCorpus(queryNorm: string, language: string | null): Promise<PlagMatch[]> {
+  const supa = supabaseAdmin();
   const { data, error } = await supa.rpc("match_plag_trgm", {
     query_text: queryNorm,
     match_count: 10,
@@ -31,30 +58,43 @@ export async function checkPlag(mcq: MCQ): Promise<PlagVerdict> {
 
   if (error) {
     console.warn("match_plag_trgm rpc error:", error.message);
-    return { verdict: "unique", matches: [], method: "corpus" };
+    return [];
   }
 
   type Row = { id: number; source: string; url: string; question: string; similarity: number };
   const rows = (data ?? []) as Row[];
-  if (rows.length === 0) {
-    return { verdict: "unique", matches: [], method: "corpus" };
-  }
 
-  // Re-rank with token_set_ratio so word reorderings don't fool us.
-  const ranked = rows.map((r) => ({
+  const ranked: PlagMatch[] = rows.map((r) => ({
     source: r.source,
     url: r.url,
     question: r.question,
     similarity: fuzz.token_set_ratio(queryNorm, normalizeText(r.question)) / 100,
   }));
   ranked.sort((a, b) => b.similarity - a.similarity);
+  return ranked;
+}
 
-  const threshold = env.plagFuzzThreshold();
-  const flagged = ranked[0].similarity >= threshold;
+async function checkWeb(rawQuestion: string, queryNorm: string): Promise<PlagMatch[]> {
+  let results: TavilyResult[] = [];
+  try {
+    // Quoted question makes Tavily prefer exact-phrase matches.
+    results = await tavilySearch(`"${rawQuestion.slice(0, 200)}"`, 5);
+  } catch (e) {
+    console.warn("tavily error:", (e as Error).message);
+    return [];
+  }
 
-  return {
-    verdict: flagged ? "flagged" : "unique",
-    matches: ranked.slice(0, 5) as PlagMatch[],
-    method: "corpus",
-  };
+  // For each hit, score (title + content) vs the question.
+  const ranked: PlagMatch[] = results.map((r) => {
+    const haystack = normalizeText(`${r.title ?? ""} ${r.content ?? ""}`);
+    const score = haystack ? fuzz.token_set_ratio(queryNorm, haystack) / 100 : 0;
+    return {
+      source: "tavily",
+      url: r.url,
+      question: (r.content ?? r.title ?? "").slice(0, 200),
+      similarity: score,
+    };
+  });
+  ranked.sort((a, b) => b.similarity - a.similarity);
+  return ranked;
 }

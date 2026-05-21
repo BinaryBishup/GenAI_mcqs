@@ -34,6 +34,8 @@ export const env = {
     (() => { throw new Error("Missing SUPABASE_SECRET_KEY / SERVICE_ROLE_KEY / PUBLISHABLE_KEY"); })(),
   judge0Key: () => required("JUDGE0_RAPIDAPI_KEY"),
   judge0Host: () => optional("JUDGE0_RAPIDAPI_HOST", "judge0-ce.p.rapidapi.com"),
+  /** Optional. If absent, the plag check uses only the local corpus. */
+  tavilyKey: () => process.env.TAVILY_API_KEY?.trim() || null,
   /** token_set_ratio threshold above which we flag as plagiarized (0–1). */
   plagFuzzThreshold: () => Number(optional("PLAG_FUZZ_THRESHOLD", "0.85")),
 };

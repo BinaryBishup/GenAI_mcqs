@@ -72,7 +72,7 @@ export interface PlagMatch {
 export interface PlagVerdict {
   verdict: "unique" | "flagged";
   matches: PlagMatch[];
-  method: "corpus";
+  method: "corpus" | "web" | "corpus+web";
 }
 
 export interface Judge0Result {

@@ -3,16 +3,21 @@
 Generation pipeline for multiple-choice questions:
 
 ```
-┌──────────┐     ┌────────────────────┐     ┌──────────┐     ┌──────────┐
-│ Generator│ →   │ Plag check         │ → → │ Revamper │ →   │ Verifier │
-│ (Claude) │     │ pg_trgm + fuzzball │  ↑  │ (Claude) │     │ (Judge0) │
-└──────────┘     └────────────────────┘  │  └──────────┘     └──────────┘
-                       ↓                 │                          ↓
-                   flagged ──────────────┘                  compile + match
+┌──────────┐     ┌────────────────────────┐     ┌──────────┐     ┌──────────┐
+│ Generator│ →   │ Plag check             │ → → │ Revamper │ →   │ Verifier │
+│ (Claude) │     │ corpus (pg_trgm)       │  ↑  │ (Claude) │     │ (Judge0) │
+│          │     │ + Tavily web search    │  │  │          │     │          │
+│          │     │ → fuzzball re-rank     │  │  │          │     │          │
+└──────────┘     └────────────────────────┘  │  └──────────┘     └──────────┘
+                       ↓                     │                          ↓
+                   flagged ──────────────────┘                  compile + match
 ```
 
 - **Generator**: Anthropic Messages API, prompt-cached samples block (`claude-haiku-4-5` / `sonnet-4-6` / `opus-4-7` by quality tier).
-- **Plag check**: Postgres `pg_trgm` index over the scraped corpus, re-ranked with `fuzzball` `token_set_ratio`. Catches exact + near-exact copies (minor identifier swaps, light rephrasing). No embeddings, no external search API.
+- **Plag check**: two parallel signals, both re-ranked with `fuzzball` `token_set_ratio`:
+  1. Local corpus via Postgres `pg_trgm` — catches stuff we've scraped.
+  2. Web via Tavily — catches stuff that's on the public web but not in the corpus.
+  Either signal scoring ≥ `PLAG_FUZZ_THRESHOLD` (default 0.85) flags the MCQ. Tavily is optional; if no key, only the corpus is used.
 - **Revamper**: Claude rewrites flagged MCQs in-context.
 - **Verifier**: Judge0 (RapidAPI) compiles + runs code MCQs; verdict drives `reassigned_correct_index` / `regenerate_options` fixes.
 
@@ -49,6 +54,7 @@ npm install
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase project settings (`sb_publishable_...`) |
 | `SUPABASE_SECRET_KEY` | Supabase project settings — optional; falls back to publishable while RLS is off |
 | `JUDGE0_RAPIDAPI_KEY` | rapidapi.com/judge0-official/api/judge0-ce |
+| `TAVILY_API_KEY` | tavily.com — optional. If missing, plag check uses only the local corpus. |
 
 Optional tuning:
 
