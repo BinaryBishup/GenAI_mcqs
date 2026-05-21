@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sample-1",
+    "type": "general",
+    "topic": "Python iterators",
+    "difficulty": "easy",
+    "question": "Which built-in function turns an iterable into an iterator?",
+    "options": ["iter()", "next()", "list()", "range()"],
+    "correct_index": 0,
+    "explanation": "iter(x) returns an iterator over x. next() consumes it; list() materializes it."
+  },
+  {
+    "id": "sample-2",
+    "type": "code",
+    "topic": "Python list slicing",
+    "difficulty": "medium",
+    "question": "What is the output of the following snippet?",
+    "options": ["[1, 2]", "[2, 3]", "[3, 4]", "[1, 2, 3]"],
+    "correct_index": 1,
+    "explanation": "lst[1:3] yields elements at indices 1 and 2.",
+    "snippet": {
+      "language": "python",
+      "code": "lst = [1, 2, 3, 4]\nprint(lst[1:3])"
+    }
+  }
+]
