@@ -32,6 +32,12 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
   const supa = supabaseAdmin();
   const model = env.modelFor(req.quality);
 
+  // Track in-flight run_events inserts so we can drain them before the
+  // serverless function exits — otherwise Vercel freezes the function and
+  // the writes never land.
+  const pendingWrites: Promise<unknown>[] = [];
+  const log = (evt: StreamEvent) => emitAndLog(emit, supa, runId, evt, pendingWrites);
+
   // ---- 1. Create run row ----------------------------------------------------
   const { data: runRow, error: runErr } = await supa
     .from("runs")
@@ -52,7 +58,7 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
   if (runErr || !runRow) throw new Error(`failed to create run: ${runErr?.message ?? "no row"}`);
   const runId = runRow.id as string;
 
-  emitAndLog(emit, supa, runId, {
+  log({
     type: "workflow_start",
     data: {
       run_id: runId,
@@ -67,20 +73,20 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
 
   try {
     // ---- 2. Load samples ---------------------------------------------------
-    emitAndLog(emit, supa, runId, { type: "phase", data: { phase: "samples", message: "Loading samples..." } });
+    log({ type: "phase", data: { phase: "samples", message: "Loading samples..." } });
     const samples = await loadSamples(req);
     const samplesBlock = buildSamplesBlock(samples);
 
     // ---- 3. Generate draft -------------------------------------------------
-    emitAndLog(emit, supa, runId, { type: "phase", data: { phase: "generate", message: `Generating with ${model}...` } });
+    log({ type: "phase", data: { phase: "generate", message: `Generating with ${model}...` } });
     const draft = await generate(req, samplesBlock, model);
-    emitAndLog(emit, supa, runId, { type: "generated", data: { count: draft.length } });
+    log({ type: "generated", data: { count: draft.length } });
 
     // Persist initial drafts.
     await insertMCQs(runId, draft);
 
     for (let i = 0; i < draft.length; i++) {
-      emitAndLog(emit, supa, runId, {
+      log({
         type: "question_start",
         data: { index: i, id: draft[i].id, question: draft[i] },
       });
@@ -89,20 +95,22 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
     // ---- 4. Plag-check + revamp loop ---------------------------------------
     await supa.from("runs").update({ status: "plagchecking" }).eq("id", runId);
     const mcqs = [...draft];
-    await Promise.all(mcqs.map((_, idx) => plagCheckWithRevamp(mcqs, idx, req, samplesBlock, model, emit, supa, runId)));
+    await Promise.all(mcqs.map((_, idx) =>
+      plagCheckWithRevamp(mcqs, idx, req, samplesBlock, model, emit, supa, runId, pendingWrites),
+    ));
 
     // ---- 5. Code verify ----------------------------------------------------
     const codeIndices = mcqs.map((m, i) => (m.type === "code" ? i : -1)).filter((i) => i >= 0);
     if (codeIndices.length > 0) {
       await supa.from("runs").update({ status: "verifying" }).eq("id", runId);
-      emitAndLog(emit, supa, runId, {
+      log({
         type: "phase",
         data: { phase: "verify", message: `Verifying ${codeIndices.length} code MCQ(s) via Judge0...` },
       });
       await Promise.all(
         codeIndices.map(async (i) => {
           const mcq = mcqs[i];
-          emitAndLog(emit, supa, runId, {
+          log({
             type: "code_verify",
             data: { index: i, language: mcq.snippet?.language },
           });
@@ -115,7 +123,7 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
             code_actual_output: mcq.code_actual_output,
             code_fix: mcq.code_fix,
           }).eq("run_id", runId).eq("index", i);
-          emitAndLog(emit, supa, runId, {
+          log({
             type: "code_verified",
             data: { index: i, info: outcome },
           });
@@ -125,16 +133,18 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
 
     // ---- 6. Done -----------------------------------------------------------
     for (let i = 0; i < mcqs.length; i++) {
-      emitAndLog(emit, supa, runId, { type: "question_done", data: { index: i, question: mcqs[i] } });
+      log({ type: "question_done", data: { index: i, question: mcqs[i] } });
     }
     await supa.from("runs").update({ status: "done", finished_at: new Date().toISOString() }).eq("id", runId);
-    emitAndLog(emit, supa, runId, { type: "workflow_done", data: { run_id: runId, count: mcqs.length, questions: mcqs } });
+    log({ type: "workflow_done", data: { run_id: runId, count: mcqs.length, questions: mcqs } });
 
+    await Promise.allSettled(pendingWrites);
     return { runId, mcqs };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await supa.from("runs").update({ status: "error", error_message: message, finished_at: new Date().toISOString() }).eq("id", runId);
-    emitAndLog(emit, supa, runId, { type: "error", data: { phase: "workflow", message } });
+    log({ type: "error", data: { phase: "workflow", message } });
+    await Promise.allSettled(pendingWrites);
     throw err;
   }
 }
@@ -189,9 +199,16 @@ async function generate(req: GenerateRequest, samplesBlock: string, model: strin
     negativePrompt: req.negative_prompt,
   });
 
+  // Scale output budget with requested count. Code MCQs cost more tokens
+  // (snippet + explanation), so we use a generous per-MCQ budget. Claude 4.x
+  // models support up to 64K output tokens; 16K is plenty here and keeps
+  // streaming + cost predictable.
+  const perMcq = req.mcq_type === "code" ? 600 : 400;
+  const maxTokens = Math.min(16384, Math.max(2048, req.count * perMcq + 800));
+
   const msg = await anthropic().messages.create({
     model,
-    max_tokens: 4096,
+    max_tokens: maxTokens,
     system: [
       { type: "text", text: SYSTEM_INSTRUCTIONS, cache_control: { type: "ephemeral" } },
     ],
@@ -201,9 +218,26 @@ async function generate(req: GenerateRequest, samplesBlock: string, model: strin
   const text = msg.content
     .flatMap((b) => (b.type === "text" ? [b.text] : []))
     .join("\n");
-  const parsed = JSON.parse(extractJson(text));
-  if (!Array.isArray(parsed)) throw new Error("generator did not return a JSON array");
-  return parsed.map((raw, i) => normalizeMCQ(raw, i, req));
+
+  try {
+    const parsed = JSON.parse(extractJson(text));
+    if (!Array.isArray(parsed)) {
+      throw new Error("generator did not return a JSON array");
+    }
+    return parsed.map((raw, i) => normalizeMCQ(raw, i, req));
+  } catch (parseErr) {
+    // Give a useful error so the run_events log captures what actually happened.
+    const stopReason = msg.stop_reason ?? "unknown";
+    const usage = msg.usage ? `in=${msg.usage.input_tokens} out=${msg.usage.output_tokens}` : "?";
+    const truncated = stopReason === "max_tokens"
+      ? ` — hit max_tokens (${maxTokens}). The generator was cut off mid-array. Try a smaller "Questions" count or a more concise prompt.`
+      : "";
+    const preview = text.length > 600 ? text.slice(0, 600) + "..." : text;
+    const reason = parseErr instanceof Error ? parseErr.message : String(parseErr);
+    throw new Error(
+      `generation parse failed: ${reason}.${truncated} stop_reason=${stopReason} usage=${usage} response_preview=${JSON.stringify(preview)}`,
+    );
+  }
 }
 
 function normalizeMCQ(raw: any, i: number, req: GenerateRequest): MCQ {
@@ -237,20 +271,22 @@ async function plagCheckWithRevamp(
   emit: Emit,
   supa: ReturnType<typeof supabaseAdmin>,
   runId: string,
+  pending: Promise<unknown>[],
 ) {
+  const log = (evt: StreamEvent) => emitAndLog(emit, supa, runId, evt, pending);
   let attempt = 0;
   const max = req.max_revamp_attempts;
   while (attempt <= max) {
     attempt += 1;
     mcqs[index].plag_attempts = attempt;
-    emitAndLog(emit, supa, runId, { type: "plag_check", data: { index, attempt } });
+    log({ type: "plag_check", data: { index, attempt } });
 
     const verdict = await checkPlag(mcqs[index]);
     if (verdict.verdict === "unique") {
       mcqs[index].plag_status = attempt === 1 ? "unique" : "revamped";
       mcqs[index].plag_matches = verdict.matches.map((m) => m.url);
       await persistPlag(supa, runId, index, mcqs[index]);
-      emitAndLog(emit, supa, runId, {
+      log({
         type: "plag_unique",
         data: { index, attempt, method: verdict.method },
       });
@@ -261,7 +297,7 @@ async function plagCheckWithRevamp(
     mcqs[index].plag_status = "flagged";
     mcqs[index].plag_matches = verdict.matches.map((m) => m.url);
     await persistPlag(supa, runId, index, mcqs[index]);
-    emitAndLog(emit, supa, runId, {
+    log({
       type: "plag_flagged",
       data: { index, attempt, matches: verdict.matches, method: verdict.method },
     });
@@ -269,12 +305,12 @@ async function plagCheckWithRevamp(
     if (attempt > max) {
       mcqs[index].plag_status = "gave_up";
       await persistPlag(supa, runId, index, mcqs[index]);
-      emitAndLog(emit, supa, runId, { type: "plag_gave_up", data: { index, attempt } });
+      log({ type: "plag_gave_up", data: { index, attempt } });
       return;
     }
 
     // Revamp inline.
-    emitAndLog(emit, supa, runId, { type: "revamping", data: { index, attempt } });
+    log({ type: "revamping", data: { index, attempt } });
     const revamped = await revampOne(mcqs[index], verdict.matches, model);
     mcqs[index] = { ...mcqs[index], ...revamped, plag_status: "pending", plag_matches: [], plag_attempts: attempt };
     await supa.from("mcqs").update({
@@ -354,8 +390,18 @@ async function persistPlag(supa: ReturnType<typeof supabaseAdmin>, runId: string
   }).eq("run_id", runId).eq("index", index);
 }
 
-function emitAndLog(emit: Emit, supa: ReturnType<typeof supabaseAdmin>, runId: string, evt: StreamEvent) {
+function emitAndLog(
+  emit: Emit,
+  supa: ReturnType<typeof supabaseAdmin>,
+  runId: string,
+  evt: StreamEvent,
+  pending?: Promise<unknown>[],
+) {
   emit(evt);
-  // Fire-and-forget; failure to log a single event should not stop the run.
-  void supa.from("run_events").insert({ run_id: runId, type: evt.type, data: evt.data });
+  const p = supa.from("run_events").insert({ run_id: runId, type: evt.type, data: evt.data });
+  // Push into the caller's pending list so they can drain before the
+  // serverless function exits. Without this, Vercel freezes the function
+  // and the writes never persist.
+  if (pending) pending.push(Promise.resolve(p).catch(() => undefined));
+  else void p;
 }
