@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen, Braces, Check, Code2, Eye, Gauge, Minus, Play, Plus, Sparkles, X, Zap,
 } from "lucide-react";
+import { QUALITY_RULES, DEFAULT_RULE_IDS } from "@/lib/prompts";
 import {
   Dialog, DialogContent, DialogTitle, DialogClose,
 } from "@/components/ui/dialog";
@@ -57,6 +58,7 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
   const [qualityTouched, setQualityTouched] = useState(false);
   const [negativePrompt, setNegativePrompt] = useState("");
   const [extraPrompt, setExtraPrompt] = useState("");
+  const [enabledRules, setEnabledRules] = useState<Set<string>>(() => new Set(DEFAULT_RULE_IDS));
 
   const [meta, setMeta] = useState<SampleCatalogItem | null>(null);
   const [sampleMcq, setSampleMcq] = useState<SampleTopicMCQ | null>(null);
@@ -70,6 +72,7 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
     setBatchName("");
     setNegativePrompt("");
     setExtraPrompt("");
+    setEnabledRules(new Set(DEFAULT_RULE_IDS));
   }, [open]);
 
   useEffect(() => {
@@ -117,6 +120,7 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
       quality,
       extra_prompt: extraPrompt.trim() || undefined,
       negative_prompt: negativePrompt.trim() || undefined,
+      quality_rules: [...enabledRules],
     });
   }
 
@@ -248,9 +252,16 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
             </div>
           </section>
 
-          {/* RIGHT — extra instructions + negative prompt */}
+          {/* RIGHT — quality rules + extra instructions + negative prompt */}
           <section className="scrollbar-thin min-h-0 overflow-y-auto bg-muted/10 px-7 py-6">
             <div className="flex h-full flex-col gap-6">
+              {/* quality rules */}
+              <QualityRulesPicker
+                mcqType={detectedType}
+                enabled={enabledRules}
+                onChange={setEnabledRules}
+              />
+
               {/* extra instructions — grows */}
               <div className="flex min-h-0 flex-1 flex-col gap-2">
                 <Label>Additional instructions <span className="font-normal normal-case tracking-normal text-muted-foreground">(optional)</span></Label>
@@ -436,6 +447,86 @@ function SamplePreviewCard({ mcq }: { mcq: SampleTopicMCQ }) {
           })}
         </ul>
       </div>
+    </div>
+  );
+}
+
+function QualityRulesPicker({
+  mcqType, enabled, onChange,
+}: {
+  mcqType: MCQType;
+  enabled: Set<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  const applicable = useMemo(
+    () => QUALITY_RULES.filter((r) => !r.appliesTo || r.appliesTo === mcqType),
+    [mcqType],
+  );
+  const enabledApplicable = applicable.filter((r) => enabled.has(r.id)).length;
+
+  function toggle(id: string) {
+    const next = new Set(enabled);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    onChange(next);
+  }
+
+  function setAll(on: boolean) {
+    if (on) onChange(new Set(applicable.map((r) => r.id)));
+    else onChange(new Set());
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>
+          Quality rules{" "}
+          <span className="font-mono normal-case tracking-normal text-muted-foreground">
+            {enabledApplicable}/{applicable.length}
+          </span>
+        </Label>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setAll(true)}
+            className="rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            All
+          </button>
+          <span className="text-muted-foreground/40">·</span>
+          <button
+            type="button"
+            onClick={() => setAll(false)}
+            className="rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            None
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {applicable.map((rule) => {
+          const on = enabled.has(rule.id);
+          return (
+            <button
+              key={rule.id}
+              type="button"
+              onClick={() => toggle(rule.id)}
+              title={rule.text}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition-colors",
+                on
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              {on ? <Check className="size-3" /> : <Plus className="size-3 rotate-45" />}
+              {rule.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        Hover a chip for the full rule text. Disabled rules are omitted from the prompt sent to Claude.
+      </p>
     </div>
   );
 }

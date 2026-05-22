@@ -45,6 +45,8 @@ export interface GenerateRequest {
   extra_prompt?: string;
   /** Appended as an "Avoid:" block in the prompt. */
   negative_prompt?: string;
+  /** Subset of quality-rule IDs to apply. Omit / undefined = all rules on. */
+  quality_rules?: string[];
 }
 
 export interface SampleCatalogItem {

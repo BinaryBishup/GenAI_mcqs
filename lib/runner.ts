@@ -197,6 +197,7 @@ async function generate(req: GenerateRequest, samplesBlock: string, model: strin
     freeFormSamples: req.samples_raw,
     extraInstructions: req.extra_prompt,
     negativePrompt: req.negative_prompt,
+    qualityRules: req.quality_rules,
   });
 
   // Scale output budget with requested count. Code MCQs cost more tokens
