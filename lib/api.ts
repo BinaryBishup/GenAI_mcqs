@@ -1,4 +1,6 @@
-import type { GenerateRequest, SampleCatalog, SampleTopic, StreamEvent } from "./types";
+import type {
+  GenerateRequest, MCQ, PastRunSummary, SampleCatalog, SampleTopic, StreamEvent,
+} from "./types";
 
 export async function fetchCatalog(): Promise<SampleCatalog> {
   const res = await fetch("/api/samples");
@@ -9,6 +11,19 @@ export async function fetchCatalog(): Promise<SampleCatalog> {
 export async function fetchTopic(filename: string): Promise<SampleTopic> {
   const res = await fetch(`/api/samples/${encodeURIComponent(filename)}`);
   if (!res.ok) throw new Error(`topic fetch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchPastRuns(source?: string): Promise<{ count: number; runs: PastRunSummary[] }> {
+  const url = source ? `/api/runs?source=${encodeURIComponent(source)}` : "/api/runs";
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`past-runs fetch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchRunResults(id: string): Promise<{ run_id: string; questions: MCQ[] }> {
+  const res = await fetch(`/api/runs/${id}/final`);
+  if (!res.ok) throw new Error(`run fetch failed: ${res.status}`);
   return res.json();
 }
 

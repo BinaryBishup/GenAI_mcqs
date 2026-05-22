@@ -195,7 +195,7 @@ async function generate(req: GenerateRequest, samplesBlock: string, model: strin
     languages: req.languages,
     samplesBlock,
     freeFormSamples: req.samples_raw,
-    customVisible: req.custom_prompt,
+    extraInstructions: req.extra_prompt,
     negativePrompt: req.negative_prompt,
   });
 

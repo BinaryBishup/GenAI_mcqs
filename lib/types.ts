@@ -41,8 +41,8 @@ export interface GenerateRequest {
   samples_per_file: number;
   max_revamp_attempts: number;
   quality: Quality;
-  /** Replaces the auto-built user prompt. Leave empty to use the default. */
-  custom_prompt?: string;
+  /** Appended to the standard user prompt as "Additional instructions". */
+  extra_prompt?: string;
   /** Appended as an "Avoid:" block in the prompt. */
   negative_prompt?: string;
 }
@@ -62,6 +62,20 @@ export interface SampleTopic {
   filename: string;
   count: number;
   by_difficulty: Record<Difficulty, SampleTopicMCQ[]>;
+}
+
+export interface PastRunSummary {
+  id: string;
+  status: RunStatus;
+  topic: string;
+  difficulty: Difficulty;
+  mcq_type: MCQType;
+  count: number;
+  quality: Quality;
+  started_at: string;
+  finished_at: string | null;
+  error_message: string | null;
+  sample_file_ids: string[];
 }
 
 export interface SampleTopicMCQ {

@@ -99,56 +99,36 @@ export function buildUserPrompt(args: {
   languages: Language[];
   samplesBlock: string;
   freeFormSamples?: string;
-  /** Optional override of the visible (post-samples) section. */
-  customVisible?: string;
-  negativePrompt?: string;
-}): string {
-  const visible = args.customVisible?.trim()
-    ? args.customVisible.trim()
-    : buildVisibleUserPrompt({
-        count: args.count,
-        topic: args.topic,
-        difficulty: args.difficulty,
-        mcqType: args.mcqType,
-        languages: args.languages,
-        negativePrompt: args.negativePrompt,
-      });
-  return [
-    args.samplesBlock,
-    args.freeFormSamples ? `\nAdditional sample notes:\n${args.freeFormSamples}` : "",
-    "",
-    visible,
-  ].filter(Boolean).join("\n");
-}
-
-/**
- * What the user sees in the "Prompt preview" editor. Excludes the samples
- * block (which is large and shouldn't be edited freehand). At generation
- * time we always prepend the samples block to whatever the user submits.
- */
-export function buildVisibleUserPrompt(args: {
-  count: number;
-  topic: string;
-  difficulty: Difficulty;
-  mcqType: MCQType;
-  languages: Language[];
+  /** Free-form text the user added in the "Additional instructions" field. */
+  extraInstructions?: string;
   negativePrompt?: string;
 }): string {
   const langs = args.mcqType === "code" && args.languages.length > 0
     ? `Languages allowed: ${args.languages.join(", ")}. Pick one language per question; vary across the set.`
     : "";
+  const extra = args.extraInstructions?.trim()
+    ? `\nAdditional instructions from the user:\n${args.extraInstructions.trim()}`
+    : "";
   const avoid = args.negativePrompt?.trim()
     ? `\nAvoid the following:\n${args.negativePrompt.trim()}`
     : "";
-  return [
+  const instruction = [
     `Generate ${args.count} novel MCQs.`,
     `Topic: ${args.topic}`,
     `Difficulty: ${args.difficulty}`,
     `Type: ${args.mcqType}`,
     langs,
+    extra,
     avoid,
     "",
     "Output: a JSON array, exactly the schema in the system message. No prose.",
+  ].filter(Boolean).join("\n");
+
+  return [
+    args.samplesBlock,
+    args.freeFormSamples ? `\nAdditional sample notes:\n${args.freeFormSamples}` : "",
+    "",
+    instruction,
   ].filter(Boolean).join("\n");
 }
 

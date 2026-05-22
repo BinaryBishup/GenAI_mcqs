@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  BookOpen, Braces, Check, Code2, Eye, Gauge, Minus, Play, Plus, RefreshCcw, Sparkles, X, Zap,
+  BookOpen, Braces, Check, Code2, Eye, Gauge, Minus, Play, Plus, Sparkles, X, Zap,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogTitle, DialogClose,
@@ -56,8 +56,7 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
   const [quality, setQuality] = useState<Quality>("fast");
   const [qualityTouched, setQualityTouched] = useState(false);
   const [negativePrompt, setNegativePrompt] = useState("");
-  const [customPrompt, setCustomPrompt] = useState("");
-  const [customPromptTouched, setCustomPromptTouched] = useState(false);
+  const [extraPrompt, setExtraPrompt] = useState("");
 
   const [meta, setMeta] = useState<SampleCatalogItem | null>(null);
   const [sampleMcq, setSampleMcq] = useState<SampleTopicMCQ | null>(null);
@@ -70,8 +69,7 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
     if (!open) return;
     setBatchName("");
     setNegativePrompt("");
-    setCustomPrompt("");
-    setCustomPromptTouched(false);
+    setExtraPrompt("");
   }, [open]);
 
   useEffect(() => {
@@ -98,17 +96,6 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
     if (!qualityTouched) setQuality(QUALITY_BY_DIFFICULTY[d]);
   }
 
-  const builtVisible = useMemo(() => buildVisible({
-    count,
-    topic: batchName,
-    difficulty,
-    mcqType: detectedType,
-    languages: detectedLang ? [detectedLang as Language] : [],
-    negativePrompt,
-  }), [count, batchName, difficulty, detectedType, detectedLang, negativePrompt]);
-
-  const promptValue = customPromptTouched ? customPrompt : builtVisible;
-
   function submit() {
     if (!batchName.trim()) {
       alert("Name this batch (e.g. \"Python list slicing\").");
@@ -128,8 +115,8 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
       samples_per_file: DEFAULT_SAMPLES_PER_FILE,
       max_revamp_attempts: DEFAULT_MAX_REVAMP,
       quality,
+      extra_prompt: extraPrompt.trim() || undefined,
       negative_prompt: negativePrompt.trim() || undefined,
-      custom_prompt: customPromptTouched ? customPrompt.trim() : undefined,
     });
   }
 
@@ -261,40 +248,24 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
             </div>
           </section>
 
-          {/* RIGHT — prompt + negative prompt (full vertical room) */}
+          {/* RIGHT — extra instructions + negative prompt */}
           <section className="scrollbar-thin min-h-0 overflow-y-auto bg-muted/10 px-7 py-6">
             <div className="flex h-full flex-col gap-6">
-              {/* prompt — grows to fill remaining vertical space */}
+              {/* extra instructions — grows */}
               <div className="flex min-h-0 flex-1 flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-1.5">
-                    Prompt
-                    {customPromptTouched && (
-                      <Badge variant="outline" className="text-[10px]">edited</Badge>
-                    )}
-                  </Label>
-                  {customPromptTouched && (
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => { setCustomPrompt(""); setCustomPromptTouched(false); }}
-                    >
-                      <RefreshCcw />
-                      Reset
-                    </Button>
-                  )}
-                </div>
+                <Label>Additional instructions <span className="font-normal normal-case tracking-normal text-muted-foreground">(optional)</span></Label>
                 <textarea
-                  value={promptValue}
-                  onChange={(e) => { setCustomPrompt(e.target.value); setCustomPromptTouched(true); }}
-                  className="scrollbar-thin min-h-[180px] w-full flex-1 resize-none rounded-md border bg-card px-3 py-2 font-mono text-[11px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  value={extraPrompt}
+                  onChange={(e) => setExtraPrompt(e.target.value)}
+                  placeholder={`Anything beyond the standard prompt — e.g.\n• Focus on edge cases with empty inputs\n• Each question should reference a real-world scenario\n• Use single-letter variable names\n\nLeave blank for the default behaviour.`}
+                  className="scrollbar-thin min-h-[200px] w-full flex-1 resize-none rounded-md border bg-card px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
                 />
                 <p className="text-[10px] text-muted-foreground">
-                  Sent after the sample MCQs. JSON-output rules in the system prompt apply regardless.
+                  Appended to the standard prompt. The samples block, JSON schema, count, topic, difficulty, and type are all wired up automatically.
                 </p>
               </div>
 
-              {/* negative prompt — fixed height beneath the prompt */}
+              {/* negative prompt */}
               <div className="space-y-2">
                 <Label>Avoid (negative prompt)</Label>
                 <textarea
@@ -469,28 +440,3 @@ function SamplePreviewCard({ mcq }: { mcq: SampleTopicMCQ }) {
   );
 }
 
-function buildVisible(args: {
-  count: number;
-  topic: string;
-  difficulty: Difficulty;
-  mcqType: MCQType;
-  languages: Language[];
-  negativePrompt?: string;
-}): string {
-  const langs = args.mcqType === "code" && args.languages.length > 0
-    ? `Languages allowed: ${args.languages.join(", ")}. Pick one language per question; vary across the set.`
-    : "";
-  const avoid = args.negativePrompt?.trim()
-    ? `\nAvoid the following:\n${args.negativePrompt.trim()}`
-    : "";
-  return [
-    `Generate ${args.count} novel MCQs.`,
-    `Topic: ${args.topic || "<name this batch above>"}`,
-    `Difficulty: ${args.difficulty}`,
-    `Type: ${args.mcqType}`,
-    langs,
-    avoid,
-    "",
-    "Output: a JSON array, exactly the schema in the system message. No prose.",
-  ].filter(Boolean).join("\n");
-}
