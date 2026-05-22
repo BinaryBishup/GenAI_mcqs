@@ -179,8 +179,8 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
         </header>
 
         {/* BODY — 2 cols */}
-        <div className="grid flex-1 min-h-0 grid-cols-1 overflow-hidden lg:grid-cols-[360px_1fr]">
-          {/* LEFT — config */}
+        <div className="grid flex-1 min-h-0 grid-cols-1 overflow-hidden lg:grid-cols-[440px_1fr]">
+          {/* LEFT — config + sample preview */}
           <section className="scrollbar-thin min-h-0 overflow-y-auto border-b px-7 py-6 lg:border-b-0 lg:border-r">
             <div className="space-y-6">
               {/* batch name */}
@@ -242,15 +242,10 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
                   })}
                 </div>
               </Field>
-            </div>
-          </section>
 
-          {/* RIGHT — sample + prompts */}
-          <section className="scrollbar-thin min-h-0 overflow-y-auto bg-muted/10 px-7 py-6">
-            <div className="space-y-6">
-              {/* sample preview */}
+              {/* sample preview — moved here so the right column has room for prompts */}
               {sampleMcq && (
-                <div className="space-y-2">
+                <div className="space-y-2 pt-2">
                   <div className="flex items-center justify-between">
                     <Label>Sample from this topic</Label>
                     {filename && (
@@ -263,9 +258,14 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
                   <SamplePreviewCard mcq={sampleMcq} />
                 </div>
               )}
+            </div>
+          </section>
 
-              {/* prompt */}
-              <div className="space-y-2">
+          {/* RIGHT — prompt + negative prompt (full vertical room) */}
+          <section className="scrollbar-thin min-h-0 overflow-y-auto bg-muted/10 px-7 py-6">
+            <div className="flex h-full flex-col gap-6">
+              {/* prompt — grows to fill remaining vertical space */}
+              <div className="flex min-h-0 flex-1 flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-1.5">
                     Prompt
@@ -287,23 +287,22 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
                 <textarea
                   value={promptValue}
                   onChange={(e) => { setCustomPrompt(e.target.value); setCustomPromptTouched(true); }}
-                  rows={7}
-                  className="scrollbar-thin w-full rounded-md border bg-card px-3 py-2 font-mono text-[11px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  className="scrollbar-thin min-h-[180px] w-full flex-1 resize-none rounded-md border bg-card px-3 py-2 font-mono text-[11px] leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
                 />
                 <p className="text-[10px] text-muted-foreground">
                   Sent after the sample MCQs. JSON-output rules in the system prompt apply regardless.
                 </p>
               </div>
 
-              {/* negative prompt */}
+              {/* negative prompt — fixed height beneath the prompt */}
               <div className="space-y-2">
                 <Label>Avoid (negative prompt)</Label>
                 <textarea
                   value={negativePrompt}
                   onChange={(e) => setNegativePrompt(e.target.value)}
-                  rows={3}
+                  rows={4}
                   placeholder="e.g. don't use list.append; avoid questions about map/filter/reduce"
-                  className="scrollbar-thin w-full rounded-md border bg-card px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  className="scrollbar-thin w-full resize-none rounded-md border bg-card px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
                 />
               </div>
             </div>
