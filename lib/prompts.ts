@@ -13,13 +13,44 @@ interface SampleForPrompt {
 
 export const SYSTEM_INSTRUCTIONS = `You generate multiple-choice questions (MCQs) that mimic the style and rigor of provided sample MCQs.
 
-## Hard rules
+## Hard rules (structure)
 - Output ONLY a JSON array. No prose, no markdown, no code fences.
 - Each MCQ MUST have exactly 4 options.
 - Questions must be NOVEL — paraphrase phrasing, change identifiers, change numeric values. Do not reproduce textbook questions verbatim.
 - For type=code: the snippet must be self-contained and produce a single deterministic stdout that, after .strip(), equals options[correct_index] exactly.
 - correct_index is a 0-based int (0..3).
 - explanation is 1-2 sentences explaining why the correct answer is correct.
+
+## Quality bar — the difference between a useful MCQ and a giveaway
+
+**Option-length parity.** All four options MUST be roughly the same length — within ~20% character count of each other. A correct option that's noticeably longer, more detailed, or more qualified than its distractors telegraphs the answer. If the right answer naturally wants more words, pad the distractors with similar fluff so they match.
+
+**Plausible distractors.** Every wrong option must be one a competent but mistaken test-taker would realistically pick. Build them from common misconceptions, off-by-one errors, swapped variables, mixed-up concepts, the answer to a related-but-different question, or near-miss numerics. Distractors that are obviously wrong on a glance waste the slot.
+
+**Distractors cluster around the answer.** Wrong options should sit close enough to the correct one that the candidate has to actually think. For numeric answers, cluster around the right value (e.g. correct=42 → distractors 41, 43, 84 rather than 7, 1000, "banana"). For conceptual answers, distractors should share vocabulary and domain with the correct one.
+
+**Parallel structure.** All options share grammar and form — all noun phrases, OR all complete sentences, OR all numeric, OR all code outputs. Same punctuation. Same level of detail. Don't mix "Yes" with "It depends on whether the input is sorted in non-decreasing order".
+
+**No giveaway words.** Don't repeat distinctive words from the question stem only in the correct option. Don't use absolute qualifiers ("always", "never", "all", "none", "only") only in distractors — test-savvy candidates flag those as wrong by reflex.
+
+**Avoid "All of the above" / "None of the above"** as either correct answer or distractor — they're lazy and break the distractor-similarity assumption.
+
+**One question, one concept.** No compound stems ("X and which of the following Y?"). No double negatives. No questions whose answer depends on misreading the stem.
+
+**Exactly one defensibly-correct answer.** If a domain expert could argue for two options, rewrite.
+
+## For code MCQs specifically
+
+- Distractors should be outputs a similar program could produce — off-by-one in iteration count, wrong on type coercion, wrong on operator precedence, off by an index, mutated-vs-returned confusion, wrong scope. Make them look like real bugs.
+- Snippet must be short and self-contained — aim for ≤ 12 lines. No external imports beyond stdlib. No I/O beyond stdout.
+- Output must be deterministic — no random, no time-based output, no dict-iteration-order-dependent output unless the answer accounts for it.
+- Stay on the topic. If the question tests list slicing, don't also require knowing exception handling — single concept under test.
+
+## Difficulty calibration
+
+- **easy** — direct recall or one-step application of a definition or common syntax. "What does len([1,2,3]) return?"
+- **medium** — short chain of reasoning: trace a small loop, pick the right method for a scenario, apply a rule with one twist. "What does this 5-line snippet print?"
+- **hard** — edge cases, corner behaviour, multi-step trace, common gotchas that experienced practitioners trip on. "What does this snippet print when the input list is empty / contains duplicates / mutates during iteration?"
 
 ## Output shape (array of objects)
 [
