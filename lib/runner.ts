@@ -101,7 +101,16 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
 
     // ---- 5. Code verify ----------------------------------------------------
     const codeIndices = mcqs.map((m, i) => (m.type === "code" ? i : -1)).filter((i) => i >= 0);
-    if (codeIndices.length > 0) {
+    const skipJudge0 = process.env.SKIP_JUDGE0 === "1" || process.env.SKIP_JUDGE0 === "true";
+    if (codeIndices.length > 0 && skipJudge0) {
+      log({
+        type: "phase",
+        data: {
+          phase: "verify",
+          message: `Skipping Judge0 verification for ${codeIndices.length} code MCQ(s) (SKIP_JUDGE0=1).`,
+        },
+      });
+    } else if (codeIndices.length > 0) {
       await supa.from("runs").update({ status: "verifying" }).eq("id", runId);
       log({
         type: "phase",
