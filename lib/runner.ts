@@ -161,38 +161,63 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
 async function loadSamples(req: GenerateRequest) {
   if (req.sample_files.length === 0) return [];
   const supa = supabaseAdmin();
-  // Pull samples_per_file rows per source_file, filtered by difficulty when possible.
+  // For each file, surface a diverse subset so the model sees the variety
+  // present in large workbooks (100+ rows) instead of always the first N.
+  // Scale the visible window with the requested count: more MCQs requested →
+  // show the model more sample patterns to draw from. Capped at 15 per file
+  // to keep prompt-cache hits cheap.
+  const visible = Math.min(
+    15,
+    Math.max(req.samples_per_file, 4 + Math.ceil(req.count / 5)),
+  );
   const all: Awaited<ReturnType<typeof fetchPerFile>> = [];
   for (const f of req.sample_files) {
-    const rows = await fetchPerFile(supa, f, req.difficulty, req.samples_per_file);
+    const rows = await fetchPerFile(supa, f, req.difficulty, visible);
     all.push(...rows);
   }
   return all;
+}
+
+/** Fisher–Yates, in place. */
+function shuffleInPlace<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 async function fetchPerFile(
   supa: ReturnType<typeof supabaseAdmin>,
   filename: string,
   difficulty: string,
-  limit: number,
+  visible: number,
 ) {
-  // Try the exact difficulty first; if too few rows come back, top up from any difficulty.
+  // Pull a pool larger than the model-visible budget, then randomize and
+  // grab a varied slice. For a 100-row workbook this surfaces real variety
+  // instead of always the first parsed rows.
+  const poolSize = Math.max(visible * 8, 40);
   const sel = "topic,difficulty,type,language,question,options,correct_index,code";
+
   const exact = await supa
     .from("samples")
     .select(sel)
     .eq("source_file", filename)
     .eq("difficulty", difficulty)
-    .limit(limit);
-  const got = exact.data ?? [];
-  if (got.length >= limit) return got;
-  const fill = await supa
-    .from("samples")
-    .select(sel)
-    .eq("source_file", filename)
-    .neq("difficulty", difficulty)
-    .limit(limit - got.length);
-  return [...got, ...(fill.data ?? [])];
+    .limit(poolSize);
+
+  let pool = exact.data ?? [];
+  if (pool.length < visible) {
+    const fill = await supa
+      .from("samples")
+      .select(sel)
+      .eq("source_file", filename)
+      .neq("difficulty", difficulty)
+      .limit(poolSize - pool.length);
+    pool = [...pool, ...(fill.data ?? [])];
+  }
+  shuffleInPlace(pool);
+  return pool.slice(0, visible);
 }
 
 async function generate(req: GenerateRequest, samplesBlock: string, model: string): Promise<MCQ[]> {
@@ -266,14 +291,21 @@ async function generate(req: GenerateRequest, samplesBlock: string, model: strin
 
 function normalizeMCQ(raw: any, i: number, req: GenerateRequest): MCQ {
   const id = typeof raw.id === "string" && raw.id.length ? raw.id : `${req.topic.slice(0, 6).replace(/\s+/g, "-").toLowerCase() || "mcq"}-${i}-${shortId()}`;
+  const rawOptions = Array.isArray(raw.options) ? raw.options.map(String) : [];
+  const rawCorrect = Math.max(0, Math.min(rawOptions.length - 1, Number(raw.correct_index ?? 0)));
+  // The model has a strong positional bias toward correct_index=0; even with
+  // explicit instructions to randomize, it ends up answer-at-A on most rows.
+  // Randomize after parsing so the visible distribution is uniform regardless
+  // of what the model emits.
+  const { options, correct_index } = randomizeAnswerPosition(rawOptions, rawCorrect);
   return {
     id,
     type: raw.type === "code" ? "code" : raw.snippet ? "code" : req.mcq_type,
     topic: raw.topic ?? req.topic,
     difficulty: raw.difficulty ?? req.difficulty,
     question: String(raw.question ?? ""),
-    options: Array.isArray(raw.options) ? raw.options.map(String) : [],
-    correct_index: Math.max(0, Math.min(3, Number(raw.correct_index ?? 0))),
+    options,
+    correct_index,
     explanation: raw.explanation ?? null,
     snippet: raw.snippet?.code
       ? { language: raw.snippet.language ?? req.languages[0] ?? "python", code: String(raw.snippet.code) }
@@ -284,6 +316,20 @@ function normalizeMCQ(raw: any, i: number, req: GenerateRequest): MCQ {
     code_verified: null,
     code_actual_output: null,
   };
+}
+
+/** Shuffle option order and return the new index of the originally-correct one. */
+function randomizeAnswerPosition(opts: string[], correctIdx: number): { options: string[]; correct_index: number } {
+  if (opts.length < 2 || correctIdx < 0 || correctIdx >= opts.length) {
+    return { options: opts, correct_index: correctIdx };
+  }
+  const indexed = opts.map((text, idx) => ({ text, originallyCorrect: idx === correctIdx }));
+  for (let i = indexed.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indexed[i], indexed[j]] = [indexed[j], indexed[i]];
+  }
+  const newCorrect = indexed.findIndex((o) => o.originallyCorrect);
+  return { options: indexed.map((o) => o.text), correct_index: newCorrect };
 }
 
 async function plagCheckWithRevamp(

@@ -46,7 +46,8 @@ SHAPE C — "Which statements about this code are true?" (code-in-stem, sentence
 - Each MCQ MUST have exactly 4 options.
 - Questions must be NOVEL — paraphrase phrasing, change identifiers, change numeric values. Do not reproduce textbook questions verbatim.
 - correct_index is a 0-based int (0..3).
-- explanation is 1-2 sentences explaining why the correct answer is correct.
+- explanation is 1-2 sentences explaining why the correct answer is correct. Refer to options by their CONTENT (e.g., "the public setBalance method") — NEVER by position ("Option 0", "the first option"). The system shuffles option order after generation, so positional references in the explanation become wrong.
+- Vary which position you place the correct answer at. Do not put the correct answer at index 0 on most questions — distribute correct_index roughly uniformly across 0, 1, 2, 3 over the batch.
 - For SHAPE A only: snippet must be self-contained and produce a single deterministic stdout that, after .strip(), equals options[correct_index] exactly.
 - For SHAPE B: keep code in options short enough to read at a glance (≤ 15 lines). Use real fenced blocks with the language tag (\`\`\`java, \`\`\`python, etc.). Use the SAME language for all 4 option snippets in a given question.
 - Question stem length must fall inside the question_words min–max range from <format_profile>. Aim for the avg.
@@ -318,6 +319,8 @@ export function buildUserPrompt(args: {
     "  4. If samples use code IN OPTIONS (Shape B), each of your 4 options must be a fenced code block (```java …```), NOT a 1-word stdout string.",
     "  5. If samples use sentence options (Shape C), each option must be a full declarative sentence, NOT a 1-word value.",
     "Generating all-Shape-A 'what is printed?' questions when samples are dominated by Shape B/C is the most common mistake — do not make it.",
+    "",
+    "PATTERN VARIETY ACROSS THE BATCH — when the same source file gives you many samples, those samples cover several distinct question patterns (definition lookup, scenario→service, troubleshooting, comparison, true-statement, etc.). DO NOT pick one pattern and replicate it across all your generated MCQs. Spread your output across the different patterns visible in the samples, in roughly the proportions they appear. Vary scenarios (industries, use cases), entity names, and concepts under test from question to question.",
     "",
     rulesBlock,
     extra,
