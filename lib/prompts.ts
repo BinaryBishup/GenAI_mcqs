@@ -11,24 +11,52 @@ interface SampleForPrompt {
   code?: string | null;
 }
 
-export const SYSTEM_INSTRUCTIONS = `You generate multiple-choice questions (MCQs) that mimic the style, rigor, AND surface shape of provided sample MCQs.
+export const SYSTEM_INSTRUCTIONS = `You generate multiple-choice questions (MCQs) that REPLICATE the exact surface shape of a provided sample set.
+
+## TOP PRIORITY — Format parity (overrides everything else)
+The single most important requirement is that your output MCQs are visually and structurally indistinguishable from the supplied samples. Before generating, look at every sample and answer for yourself:
+  1. Where does code live? In the question stem? In the options? In both? In neither?
+  2. What are the options? Full code snippets? Full sentences? Short noun phrases? Short stdout strings? A mix?
+  3. How long is the question stem (word count)? Does it have a scenario setup?
+  4. What is the opening pattern ("Assume that...", "Consider that...", "A team is...")?
+  5. Is there a code listing presented in the stem followed by "What will be the output?" — or is the question "Which implementation is correct?" with code in options — or "Which statements are true?" with sentence options?
+
+Then DISTRIBUTE your generated MCQs across the SAME shapes you see, in roughly the SAME ratios. If 4 of 5 samples have code inside the options and 1 of 5 has a "what's printed" stdout question, your output must follow that same 4:1 ratio. Do NOT default to one shape because it is easier — the samples drive the shape.
+
+## The three canonical code-MCQ shapes (pick per question based on samples)
+SHAPE A — "What is the output?" (code-in-stem, stdout-string options)
+  - question contains "What will be printed/returned/output?"
+  - question.snippet holds the code; type = "code"
+  - options are 4 short strings (a single printed value or short line)
+  - correct option = the actual deterministic stdout of the snippet
+SHAPE B — "Which implementation/snippet is correct?" (code-in-options)
+  - question is a scenario describing a method/class to implement; may include a partial code skeleton
+  - type = "general"  (NOT code — execution is not what is tested)
+  - question.snippet is OMITTED, OR holds only setup/skeleton code
+  - each of the 4 options is a fenced code block (\`\`\`lang\\n...\\n\`\`\`) showing a different candidate implementation
+  - correct option = the snippet that actually solves the problem
+SHAPE C — "Which statements about this code are true?" (code-in-stem, sentence options)
+  - question contains a code listing then asks which behaviour/statement holds
+  - type = "code"; question.snippet holds the code
+  - options are 4 full sentences (each makes a claim about the code's behaviour)
+  - correct option = the true statement
 
 ## Hard rules (structure — non-negotiable)
-- Output ONLY a JSON array. No prose, no markdown, no code fences.
+- Output ONLY a JSON array. No prose, no markdown, no code fences around the array.
 - Each MCQ MUST have exactly 4 options.
 - Questions must be NOVEL — paraphrase phrasing, change identifiers, change numeric values. Do not reproduce textbook questions verbatim.
-- For type=code: the snippet must be self-contained and produce a single deterministic stdout that, after .strip(), equals options[correct_index] exactly.
 - correct_index is a 0-based int (0..3).
 - explanation is 1-2 sentences explaining why the correct answer is correct.
+- For SHAPE A only: snippet must be self-contained and produce a single deterministic stdout that, after .strip(), equals options[correct_index] exactly.
+- For SHAPE B: keep code in options short enough to read at a glance (≤ 15 lines). Use real fenced blocks with the language tag (\`\`\`java, \`\`\`python, etc.). Use the SAME language for all 4 option snippets in a given question.
+- Question stem length must fall inside the question_words min–max range from <format_profile>. Aim for the avg.
+- The user-requested mcq_type ("code" vs "general") is a hint about whether to involve code at all; the SPECIFIC shape (A/B/C) is dictated by the samples, not the request.
 
-## Mimic sample shape (length & format parity — non-negotiable)
-You will be given a small set of sample MCQs and a computed Format profile. Treat them as the canonical shape of the output:
-- Match the question stem length (word count) to the sample range. If samples average 60–90 words with scenario setup, do NOT emit one-line stems.
-- Match the option style: when samples use short noun phrases, use short noun phrases; when samples use full code snippets as options, use full code snippets as options.
-- Match the opening pattern when present: "Consider that…", "Assume that…", "A team is working on…", "A code is written as:" — pick the same kind of scaffolding the samples use.
-- If samples embed code in the QUESTION (setup code the student reasons about), put code in your question.snippet field.
-- If samples embed code IN THE OPTIONS (each option is a different code snippet, the question asks "which snippet is correct"), put fenced code blocks inside each option string — do NOT use question.snippet for this case; type stays "general".
-- Match number of options (always 4) and ratio of code-options to text-options to what samples show.
+## Mimic sample shape (length & format parity)
+- Match question stem length (word count) to the sample range.
+- Match option style: short noun phrases → short noun phrases; full code snippets → full code snippets; full sentences → full sentences.
+- Match opening pattern: "Consider that…", "Assume that…", "A team is working on…", "A code is written as:".
+- Match the number of options (always 4) and ratio of code-options to text-options to what samples show.
 
 ## Difficulty calibration
 - **easy** — direct recall or one-step application of a definition or common syntax.
@@ -46,7 +74,7 @@ You will be given a small set of sample MCQs and a computed Format profile. Trea
     "options": ["A","B","C","D"],
     "correct_index": 0,
     "explanation": "...",
-    "snippet": { "language": "<lang>", "code": "..." }    // only when type=code
+    "snippet": { "language": "<lang>", "code": "..." }    // include for SHAPE A and SHAPE C; omit for SHAPE B
   }
 ]
 
@@ -158,44 +186,82 @@ function range(nums: number[]): { min: number; max: number; avg: number } {
   return { min, max, avg };
 }
 
+const CODE_HINTS_RX = /```|\bclass\s|\bpublic\s|\bprivate\s|\bvoid\s|\bstatic\s|\breturn\s|=>\s|;\s*$|\bSystem\.|\bfunction\s|\bdef\s|\bint\s|\bdouble\s|\bString\s/m;
+
+function optionLooksLikeCode(o: string): boolean {
+  return CODE_HINTS_RX.test(o);
+}
+
+/**
+ * Classify each sample by which of the three canonical shapes it represents.
+ * Shape A = code in stem, stdout-string options ("what's printed?")
+ * Shape B = no/skeleton code in stem, fenced code snippets as options ("which impl?")
+ * Shape C = code in stem, full-sentence options ("which statement is true?")
+ */
+function classifyShape(s: SampleForPrompt): "A" | "B" | "C" {
+  const optsCode = s.options.filter(optionLooksLikeCode).length;
+  const optsLong = s.options.filter((o) => wordCount(o) >= 6).length;
+  if (optsCode >= 2) return "B";
+  if (s.code && optsLong >= 2) return "C";
+  if (s.code) return "A";
+  if (optsCode >= 2) return "B";
+  return "C";
+}
+
 /**
  * Derive concrete numeric targets so the model can match sample shape, not
  * just sample topic. Injected at the top of the samples block.
  */
-function buildFormatProfile(samples: SampleForPrompt[]): string {
+function buildFormatProfile(samples: SampleForPrompt[], requestedCount: number): string {
   if (samples.length === 0) return "";
   const qWords = samples.map((s) => wordCount(s.question));
   const optWords: number[] = [];
   let codeInQ = 0;
   let codeInOpts = 0;
+  const shapeCounts: Record<"A" | "B" | "C", number> = { A: 0, B: 0, C: 0 };
   for (const s of samples) {
     s.options.forEach((o) => optWords.push(wordCount(o)));
     if (s.code) codeInQ++;
-    if (s.options.some((o) => /```|\bclass\s|\bpublic\s|\bvoid\s|=>\s|;\s*$/m.test(o))) codeInOpts++;
+    if (s.options.some(optionLooksLikeCode)) codeInOpts++;
+    shapeCounts[classifyShape(s)]++;
   }
   const qr = range(qWords);
   const or = range(optWords);
   const pct = (n: number) => Math.round((n / samples.length) * 100);
+  // Translate sample-shape ratios into a concrete per-output target so the
+  // model can't dodge the "match the distribution" instruction.
+  const targetA = Math.round((shapeCounts.A / samples.length) * requestedCount);
+  const targetB = Math.round((shapeCounts.B / samples.length) * requestedCount);
+  let targetC = requestedCount - targetA - targetB;
+  if (targetC < 0) targetC = 0;
   const lines = [
     "<format_profile>",
     `samples_seen: ${samples.length}`,
-    `question_words: min=${qr.min}, max=${qr.max}, avg=${qr.avg}  (your generated stems must fall in this range — aim for the average)`,
-    `option_words:   min=${or.min}, max=${or.max}, avg=${or.avg}  (all four options together; keep them parallel in length per question)`,
-    `code_in_question: ${pct(codeInQ)}% of samples include a code snippet in the question stem`,
-    `code_in_options:  ${pct(codeInOpts)}% of samples include code/snippets inside the option strings`,
-    "Rule: mirror these ratios. If code_in_options is high, generate questions whose options ARE code snippets (fenced blocks inside option strings, type=general). If code_in_question is high, put the code in question.snippet (type=code).",
+    `question_words: min=${qr.min}, max=${qr.max}, avg=${qr.avg}  (every generated stem MUST land in this range — aim for the average)`,
+    `option_words:   min=${or.min}, max=${or.max}, avg=${or.avg}  (per-option; the four options in one MCQ must be parallel in length to each other)`,
+    `code_in_question: ${pct(codeInQ)}% of samples place a code snippet in the question stem`,
+    `code_in_options:  ${pct(codeInOpts)}% of samples place code snippets inside the option strings`,
+    "shape_distribution_in_samples:",
+    `  Shape A (code in stem, short stdout options — "what's printed?"): ${shapeCounts.A}/${samples.length}`,
+    `  Shape B (code IN OPTIONS, "which implementation is correct?"): ${shapeCounts.B}/${samples.length}`,
+    `  Shape C (code in stem, sentence options — "which statement is true?"): ${shapeCounts.C}/${samples.length}`,
+    "required_output_distribution:",
+    `  You are generating ${requestedCount} MCQs. Emit roughly: ${targetA} of Shape A, ${targetB} of Shape B, ${targetC} of Shape C.`,
+    "  This distribution is a hard requirement — do NOT emit all Shape A if samples are dominated by B or C.",
     "</format_profile>",
   ];
   return lines.join("\n");
 }
 
-export function buildSamplesBlock(samples: SampleForPrompt[]): string {
+export function buildSamplesBlock(samples: SampleForPrompt[], requestedCount = 5): string {
   if (samples.length === 0) return "[no samples provided]";
   const lines: string[] = [];
-  lines.push(buildFormatProfile(samples));
+  lines.push(buildFormatProfile(samples, requestedCount));
   lines.push(`<samples count="${samples.length}">`);
   for (const s of samples) {
+    const shape = classifyShape(s);
     lines.push("---");
+    lines.push(`shape: ${shape}   (A=output / B=code-in-options / C=sentence-options)`);
     lines.push(`type: ${s.type}`);
     lines.push(`topic: ${s.topic}`);
     lines.push(`difficulty: ${s.difficulty}`);
@@ -207,7 +273,7 @@ export function buildSamplesBlock(samples: SampleForPrompt[]): string {
       lines.push(s.code);
       lines.push("```");
     }
-    s.options.forEach((o, i) => lines.push(`option ${i} (${wordCount(o)} words): ${o}`));
+    s.options.forEach((o, i) => lines.push(`option ${i} (${wordCount(o)} words${optionLooksLikeCode(o) ? ", CODE" : ""}): ${o}`));
     lines.push(`correct_index: ${s.correct_index}`);
   }
   lines.push("</samples>");
@@ -242,16 +308,22 @@ export function buildUserPrompt(args: {
     `Generate ${args.count} novel MCQs.`,
     `Topic: ${args.topic}`,
     `Difficulty: ${args.difficulty}`,
-    `Type: ${args.mcqType}`,
+    `Type hint (overall): ${args.mcqType}  — but the actual per-question SHAPE (A/B/C) comes from <format_profile> above, not from this hint.`,
     langs,
+    "",
+    "FORMAT PARITY IS THE #1 REQUIREMENT — it overrides every other rule below. Before generating:",
+    "  1. Read <format_profile> and the per-sample 'shape:' labels.",
+    "  2. Match the required_output_distribution EXACTLY (Shape A count + Shape B count + Shape C count).",
+    "  3. For each MCQ, before writing it, decide its shape and confirm: stem length in question_words range, options follow the shape's option style, code lives where samples put it.",
+    "  4. If samples use code IN OPTIONS (Shape B), each of your 4 options must be a fenced code block (```java …```), NOT a 1-word stdout string.",
+    "  5. If samples use sentence options (Shape C), each option must be a full declarative sentence, NOT a 1-word value.",
+    "Generating all-Shape-A 'what is printed?' questions when samples are dominated by Shape B/C is the most common mistake — do not make it.",
     "",
     rulesBlock,
     extra,
     avoid,
     "",
-    "Format parity is a HARD requirement: match the question-word range, option-word range, and code-placement pattern reported in <format_profile> above. Stems shorter than the sample minimum or options noticeably shorter/longer than the sample range will be rejected.",
-    "",
-    "Output: a JSON array, exactly the schema in the system message. No prose.",
+    "Output: a JSON array, exactly the schema in the system message. No prose, no markdown fences around the array.",
   ].filter(Boolean).join("\n");
 
   return [

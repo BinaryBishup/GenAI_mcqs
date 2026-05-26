@@ -75,7 +75,7 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
     // ---- 2. Load samples ---------------------------------------------------
     log({ type: "phase", data: { phase: "samples", message: "Loading samples..." } });
     const samples = await loadSamples(req);
-    const samplesBlock = buildSamplesBlock(samples);
+    const samplesBlock = buildSamplesBlock(samples, req.count);
 
     // ---- 3. Generate draft -------------------------------------------------
     log({ type: "phase", data: { phase: "generate", message: `Generating with ${model}...` } });
