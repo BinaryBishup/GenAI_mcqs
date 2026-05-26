@@ -96,8 +96,16 @@ export function RunView({ config, events, results, running, error, onReset }: Pr
       </div>
 
       {error && (
-        <div className="shrink-0 border-b border-destructive/30 bg-destructive/5 px-6 py-2 text-sm text-destructive">
-          {error}
+        <div className="shrink-0 border-b border-destructive/40 bg-destructive/10 px-6 py-3 text-sm text-destructive">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest">
+            Generation failed
+          </p>
+          <p className="whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed">
+            {error}
+          </p>
+          <p className="mt-2 text-[11px] text-destructive/80">
+            Click <span className="font-medium">Back</span> to return to the samples list and try again.
+          </p>
         </div>
       )}
 

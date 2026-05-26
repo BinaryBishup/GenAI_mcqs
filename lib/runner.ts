@@ -210,11 +210,13 @@ async function generate(req: GenerateRequest, samplesBlock: string, model: strin
   });
 
   // Scale output budget with requested count. Code MCQs cost more tokens
-  // (snippet + explanation), so we use a generous per-MCQ budget. Claude 4.x
-  // models support up to 64K output tokens; 16K is plenty here and keeps
-  // streaming + cost predictable.
-  const perMcq = req.mcq_type === "code" ? 600 : 400;
-  const maxTokens = Math.min(16384, Math.max(2048, req.count * perMcq + 800));
+  // because each MCQ may be Shape B (each of the 4 options is a fenced code
+  // snippet of ~8-15 lines) on top of a setup snippet in question.snippet —
+  // that's roughly 5x the tokens of a simple "what's printed?" MCQ. Be generous
+  // so we never get truncated mid-array. Claude 4.x supports up to 64K output;
+  // 32K is plenty and keeps streaming + cost predictable.
+  const perMcq = req.mcq_type === "code" ? 1400 : 500;
+  const maxTokens = Math.min(32000, Math.max(3000, req.count * perMcq + 1200));
 
   const msg = await anthropic().messages.create({
     model,
@@ -236,14 +238,22 @@ async function generate(req: GenerateRequest, samplesBlock: string, model: strin
     }
     return parsed.map((raw, i) => normalizeMCQ(raw, i, req));
   } catch (parseErr) {
-    // Give a useful error so the run_events log captures what actually happened.
     const stopReason = msg.stop_reason ?? "unknown";
     const usage = msg.usage ? `in=${msg.usage.input_tokens} out=${msg.usage.output_tokens}` : "?";
     const truncated = stopReason === "max_tokens"
-      ? ` — hit max_tokens (${maxTokens}). The generator was cut off mid-array. Try a smaller "Questions" count or a more concise prompt.`
+      ? ` — hit max_tokens (${maxTokens}). Cut off mid-array. Try fewer questions or a tighter prompt.`
       : "";
-    const preview = text.length > 600 ? text.slice(0, 600) + "..." : text;
     const reason = parseErr instanceof Error ? parseErr.message : String(parseErr);
+    if (process.env.NODE_ENV !== "production") {
+      try {
+        const fs = await import("fs/promises");
+        const path = `/tmp/mcq-parse-fail-${Date.now()}.txt`;
+        await fs.writeFile(path, text);
+        // eslint-disable-next-line no-console
+        console.error(`[generate] parse fail dumped to ${path} (stop=${stopReason}, ${usage}, max=${maxTokens})`);
+      } catch {}
+    }
+    const preview = text.length > 1200 ? text.slice(0, 1200) + "..." : text;
     throw new Error(
       `generation parse failed: ${reason}.${truncated} stop_reason=${stopReason} usage=${usage} response_preview=${JSON.stringify(preview)}`,
     );

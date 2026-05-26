@@ -43,6 +43,18 @@ export default function Page() {
       (evt) => {
         setEvents((prev) => [...prev, evt]);
 
+        // Server-emitted error events: the SSE stream stays open (status=200)
+        // but the workflow has failed. Translate to an error banner so the user
+        // sees what happened instead of an empty RunView that then drops back
+        // to the homepage when `running` flips false.
+        if (evt.type === "error") {
+          const msg = evt.data?.message
+            ? `${evt.data.phase ? `[${evt.data.phase}] ` : ""}${evt.data.message}`
+            : "Generation failed (no message).";
+          setError(msg);
+          return;
+        }
+
         if (evt.type === "workflow_done") {
           const qs = evt.data?.questions;
           if (Array.isArray(qs) && qs.length > 0) {
@@ -114,7 +126,10 @@ export default function Page() {
     setSampleFile("");
   }
 
-  const inRun = config !== null && (running || results.length > 0 || error !== null);
+  // Once a run has been kicked off, we stay on RunView until the user clicks
+  // Back. Without this, a workflow that ends in an error (and produced no
+  // results) silently flips us back to the homepage, hiding the error.
+  const inRun = config !== null;
 
   return (
     <div className="flex h-screen flex-col">

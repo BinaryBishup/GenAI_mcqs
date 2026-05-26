@@ -9,12 +9,26 @@ export function anthropic(): Anthropic {
   return _client;
 }
 
-/** Strip ```json fences and trailing junk from a model response. */
+/**
+ * Strip an outer ```json fence wrapper from a model response.
+ *
+ * The MCQ payload itself contains ```java / ```python fenced blocks inside
+ * the option strings (Shape B: "which implementation is correct?"). So a
+ * non-greedy regex that matches the *first* closing ``` will truncate the
+ * JSON at the first inner fence. We instead:
+ *   1. Strip a leading ```json|``` opener if present.
+ *   2. Strip a trailing ``` closer if present (greedy from the end).
+ *   3. Locate the first '[' or '{' and return from there.
+ */
 export function extractJson(text: string): string {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fence) return fence[1].trim();
-  // Try to locate the first { or [ and the matching closer.
-  const start = text.search(/[\[{]/);
-  if (start === -1) return text.trim();
-  return text.slice(start).trim();
+  let t = text.trim();
+  const opener = t.match(/^```(?:json)?\s*\n?/i);
+  if (opener) {
+    t = t.slice(opener[0].length);
+    // Walk back from the end to drop a trailing closing fence (if any).
+    t = t.replace(/\s*```\s*$/, "");
+  }
+  const start = t.search(/[\[{]/);
+  if (start === -1) return t.trim();
+  return t.slice(start).trim();
 }

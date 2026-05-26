@@ -42,7 +42,7 @@ SHAPE C — "Which statements about this code are true?" (code-in-stem, sentence
   - correct option = the true statement
 
 ## Hard rules (structure — non-negotiable)
-- Output ONLY a JSON array. No prose, no markdown, no code fences around the array.
+- Output ONLY a raw JSON array. Your FIRST character MUST be '[' and your LAST character MUST be ']'. No \`\`\`json, no \`\`\`, no leading "Here is...", no trailing prose, no explanation outside the array. Any wrapping is a parse failure.
 - Each MCQ MUST have exactly 4 options.
 - Questions must be NOVEL — paraphrase phrasing, change identifiers, change numeric values. Do not reproduce textbook questions verbatim.
 - correct_index is a 0-based int (0..3).
@@ -323,7 +323,7 @@ export function buildUserPrompt(args: {
     extra,
     avoid,
     "",
-    "Output: a JSON array, exactly the schema in the system message. No prose, no markdown fences around the array.",
+    "Output: a raw JSON array. First character must be '['. Do NOT wrap the array in ```json fences — fences cause a parse failure.",
   ].filter(Boolean).join("\n");
 
   return [
