@@ -87,6 +87,7 @@ function decodeEntity(e: string): string {
 }
 
 const IFRAME_RX = /<iframe[^>]*src="([^"]*codesnippet[^"]*)"/i;
+const IFRAME_RX_ALL = /<iframe[^>]*src="([^"]*codesnippet[^"]*)"[^>]*><\/iframe>/gi;
 
 function extractSnippet(html: string): { language: Language; code: string } | null {
   const m = html.match(IFRAME_RX);
@@ -101,6 +102,26 @@ function extractSnippet(html: string): { language: Language; code: string } | nu
   } catch {
     return null;
   }
+}
+
+/**
+ * Replace every `<iframe …codesnippet…>` in `html` with the decoded code,
+ * wrapped in a fenced block so the LLM sees the actual code rather than an
+ * empty placeholder after tag stripping. Used for option cells that contain
+ * code snippets — e.g. "which snippet correctly defines X?" MCQs.
+ */
+function inlineIframeCode(html: string): string {
+  return html.replace(IFRAME_RX_ALL, (_full, src) => {
+    const cleaned = String(src).replace(/&amp;/g, "&");
+    try {
+      const u = new URL(cleaned, "http://x.local");
+      const code = u.searchParams.get("code") ?? "";
+      if (!code) return "";
+      return "\n```\n" + decodeURIComponent(code) + "\n```\n";
+    } catch {
+      return "";
+    }
+  });
 }
 
 function correctIndex(value: any): number | null {
@@ -150,7 +171,11 @@ function parseWorkbook(path: string): SampleRow[] {
       const rawQ = String(row[colQ] ?? "");
       if (!rawQ.trim()) continue;
       const rawOpts = choiceCols.map((c) => String(row[c] ?? ""));
-      const options = rawOpts.map(htmlToText).filter(Boolean).slice(0, 8);
+      // Some option cells embed Mettl codesnippet iframes (the option *is* a
+      // code snippet). htmlToText strips the iframe, so inline the decoded
+      // code first; otherwise those rows would be discarded.
+      const options = rawOpts.map((o) => htmlToText(inlineIframeCode(o)))
+        .filter(Boolean).slice(0, 8);
       if (options.length < 2) continue;
       const ci = correctIndex(row[colCorrect]);
       if (ci == null || ci < 0 || ci >= options.length) continue;

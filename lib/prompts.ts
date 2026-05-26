@@ -11,7 +11,7 @@ interface SampleForPrompt {
   code?: string | null;
 }
 
-export const SYSTEM_INSTRUCTIONS = `You generate multiple-choice questions (MCQs) that mimic the style and rigor of provided sample MCQs.
+export const SYSTEM_INSTRUCTIONS = `You generate multiple-choice questions (MCQs) that mimic the style, rigor, AND surface shape of provided sample MCQs.
 
 ## Hard rules (structure — non-negotiable)
 - Output ONLY a JSON array. No prose, no markdown, no code fences.
@@ -20,6 +20,15 @@ export const SYSTEM_INSTRUCTIONS = `You generate multiple-choice questions (MCQs
 - For type=code: the snippet must be self-contained and produce a single deterministic stdout that, after .strip(), equals options[correct_index] exactly.
 - correct_index is a 0-based int (0..3).
 - explanation is 1-2 sentences explaining why the correct answer is correct.
+
+## Mimic sample shape (length & format parity — non-negotiable)
+You will be given a small set of sample MCQs and a computed Format profile. Treat them as the canonical shape of the output:
+- Match the question stem length (word count) to the sample range. If samples average 60–90 words with scenario setup, do NOT emit one-line stems.
+- Match the option style: when samples use short noun phrases, use short noun phrases; when samples use full code snippets as options, use full code snippets as options.
+- Match the opening pattern when present: "Consider that…", "Assume that…", "A team is working on…", "A code is written as:" — pick the same kind of scaffolding the samples use.
+- If samples embed code in the QUESTION (setup code the student reasons about), put code in your question.snippet field.
+- If samples embed code IN THE OPTIONS (each option is a different code snippet, the question asks "which snippet is correct"), put fenced code blocks inside each option string — do NOT use question.snippet for this case; type stays "general".
+- Match number of options (always 4) and ratio of code-options to text-options to what samples show.
 
 ## Difficulty calibration
 - **easy** — direct recall or one-step application of a definition or common syntax.
@@ -137,9 +146,53 @@ function buildQualityRulesBlock(enabledIds: string[], mcqType: MCQType): string 
   ].join("\n");
 }
 
+function wordCount(s: string): number {
+  return s.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function range(nums: number[]): { min: number; max: number; avg: number } {
+  if (nums.length === 0) return { min: 0, max: 0, avg: 0 };
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+  const avg = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+  return { min, max, avg };
+}
+
+/**
+ * Derive concrete numeric targets so the model can match sample shape, not
+ * just sample topic. Injected at the top of the samples block.
+ */
+function buildFormatProfile(samples: SampleForPrompt[]): string {
+  if (samples.length === 0) return "";
+  const qWords = samples.map((s) => wordCount(s.question));
+  const optWords: number[] = [];
+  let codeInQ = 0;
+  let codeInOpts = 0;
+  for (const s of samples) {
+    s.options.forEach((o) => optWords.push(wordCount(o)));
+    if (s.code) codeInQ++;
+    if (s.options.some((o) => /```|\bclass\s|\bpublic\s|\bvoid\s|=>\s|;\s*$/m.test(o))) codeInOpts++;
+  }
+  const qr = range(qWords);
+  const or = range(optWords);
+  const pct = (n: number) => Math.round((n / samples.length) * 100);
+  const lines = [
+    "<format_profile>",
+    `samples_seen: ${samples.length}`,
+    `question_words: min=${qr.min}, max=${qr.max}, avg=${qr.avg}  (your generated stems must fall in this range — aim for the average)`,
+    `option_words:   min=${or.min}, max=${or.max}, avg=${or.avg}  (all four options together; keep them parallel in length per question)`,
+    `code_in_question: ${pct(codeInQ)}% of samples include a code snippet in the question stem`,
+    `code_in_options:  ${pct(codeInOpts)}% of samples include code/snippets inside the option strings`,
+    "Rule: mirror these ratios. If code_in_options is high, generate questions whose options ARE code snippets (fenced blocks inside option strings, type=general). If code_in_question is high, put the code in question.snippet (type=code).",
+    "</format_profile>",
+  ];
+  return lines.join("\n");
+}
+
 export function buildSamplesBlock(samples: SampleForPrompt[]): string {
   if (samples.length === 0) return "[no samples provided]";
   const lines: string[] = [];
+  lines.push(buildFormatProfile(samples));
   lines.push(`<samples count="${samples.length}">`);
   for (const s of samples) {
     lines.push("---");
@@ -147,14 +200,14 @@ export function buildSamplesBlock(samples: SampleForPrompt[]): string {
     lines.push(`topic: ${s.topic}`);
     lines.push(`difficulty: ${s.difficulty}`);
     if (s.language) lines.push(`language: ${s.language}`);
-    lines.push(`question: ${s.question}`);
+    lines.push(`question (${wordCount(s.question)} words): ${s.question}`);
     if (s.code) {
       lines.push("code:");
       lines.push("```");
       lines.push(s.code);
       lines.push("```");
     }
-    s.options.forEach((o, i) => lines.push(`option ${i}: ${o}`));
+    s.options.forEach((o, i) => lines.push(`option ${i} (${wordCount(o)} words): ${o}`));
     lines.push(`correct_index: ${s.correct_index}`);
   }
   lines.push("</samples>");
@@ -195,6 +248,8 @@ export function buildUserPrompt(args: {
     rulesBlock,
     extra,
     avoid,
+    "",
+    "Format parity is a HARD requirement: match the question-word range, option-word range, and code-placement pattern reported in <format_profile> above. Stems shorter than the sample minimum or options noticeably shorter/longer than the sample range will be rejected.",
     "",
     "Output: a JSON array, exactly the schema in the system message. No prose.",
   ].filter(Boolean).join("\n");
