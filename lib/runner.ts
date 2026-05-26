@@ -218,7 +218,10 @@ async function generate(req: GenerateRequest, samplesBlock: string, model: strin
   const perMcq = req.mcq_type === "code" ? 1400 : 500;
   const maxTokens = Math.min(32000, Math.max(3000, req.count * perMcq + 1200));
 
-  const msg = await anthropic().messages.create({
+  // Anthropic requires streaming for any request that may exceed the 10-minute
+  // non-streaming cap. With max_tokens up to 32K, large counts can take that
+  // long, so always stream and re-assemble the message.
+  const stream = anthropic().messages.stream({
     model,
     max_tokens: maxTokens,
     system: [
@@ -226,6 +229,7 @@ async function generate(req: GenerateRequest, samplesBlock: string, model: strin
     ],
     messages: [{ role: "user", content: userPrompt }],
   });
+  const msg = await stream.finalMessage();
 
   const text = msg.content
     .flatMap((b) => (b.type === "text" ? [b.text] : []))
