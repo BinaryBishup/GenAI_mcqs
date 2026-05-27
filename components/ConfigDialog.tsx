@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  BookOpen, Braces, Check, Code2, Eye, Gauge, Minus, Play, Plus, Sparkles, X, Zap,
+  ArrowLeft, ArrowRight, BookOpen, Braces, Check, Code2, Eye, Gauge, Minus, Play,
+  Plus, Sparkles, X, Zap,
 } from "lucide-react";
 import { QUALITY_RULES, DEFAULT_RULE_IDS } from "@/lib/prompts";
 import {
@@ -51,7 +52,9 @@ const DEFAULT_SAMPLES_PER_FILE = 4;
 const DEFAULT_MAX_REVAMP = 3;
 
 export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPreview }: Props) {
+  const [step, setStep] = useState<1 | 2>(1);
   const [batchName, setBatchName] = useState("");
+  const [nameError, setNameError] = useState(false);
   const [count, setCount] = useState(5);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [quality, setQuality] = useState<Quality>("fast");
@@ -69,7 +72,9 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
 
   useEffect(() => {
     if (!open) return;
+    setStep(1);
     setBatchName("");
+    setNameError(false);
     setNegativePrompt("");
     setExtraPrompt("");
     setEnabledRules(new Set(DEFAULT_RULE_IDS));
@@ -99,9 +104,19 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
     if (!qualityTouched) setQuality(QUALITY_BY_DIFFICULTY[d]);
   }
 
+  function goNext() {
+    if (!batchName.trim()) {
+      setNameError(true);
+      return;
+    }
+    setNameError(false);
+    setStep(2);
+  }
+
   function submit() {
     if (!batchName.trim()) {
-      alert("Name this batch (e.g. \"Python list slicing\").");
+      setStep(1);
+      setNameError(true);
       return;
     }
     const languages: Language[] = detectedType === "code" && detectedLang
@@ -128,10 +143,10 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:!max-w-[960px]"
+        className="flex max-h-[92vh] w-[calc(100vw-1.5rem)] flex-col gap-0 overflow-hidden p-0 sm:!max-w-[960px]"
       >
-        {/* HEADER — topic + detected type, no generic title */}
-        <header className="shrink-0 border-b px-7 py-4">
+        {/* HEADER — source + step indicator */}
+        <header className="shrink-0 border-b px-5 py-4 sm:px-7">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <DialogTitle className="sr-only">Configure generation</DialogTitle>
@@ -167,137 +182,166 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
               </Button>
             </DialogClose>
           </div>
+
+          {/* stepper */}
+          <div className="mt-4 flex items-center gap-2">
+            <StepPill index={1} label="Setup" active={step === 1} done={step > 1} onClick={() => setStep(1)} />
+            <div className={cn("h-px flex-1", step > 1 ? "bg-primary" : "bg-border")} />
+            <StepPill index={2} label="Prompt & rules" active={step === 2} done={false} onClick={goNext} />
+          </div>
         </header>
 
-        {/* BODY — 2 cols */}
-        <div className="grid flex-1 min-h-0 grid-cols-1 overflow-hidden lg:grid-cols-[440px_1fr]">
-          {/* LEFT — config + sample preview */}
-          <section className="scrollbar-thin min-h-0 overflow-y-auto border-b px-7 py-6 lg:border-b-0 lg:border-r">
-            <div className="space-y-6">
-              {/* batch name */}
-              <Field label="Batch name">
-                <Input
-                  value={batchName}
-                  onChange={(e) => setBatchName(e.target.value)}
-                  placeholder="e.g. Python list slicing"
-                  className="h-10"
-                  autoFocus
-                />
-              </Field>
-
-              {/* count counter */}
-              <Field label="Questions">
-                <Counter value={count} min={1} max={50} onChange={setCount} />
-              </Field>
-
-              {/* difficulty toggle */}
-              <Field label="Difficulty">
-                <SegmentedControl
-                  value={difficulty}
-                  onChange={(v) => changeDifficulty(v)}
-                  options={DIFFICULTY_OPTIONS}
-                />
-              </Field>
-
-              {/* quality (Claude model) — Claude coral on selected */}
-              <Field
-                label="Model"
-                hint={!qualityTouched ? "auto" : undefined}
-              >
-                <div className="grid grid-cols-3 gap-1.5 rounded-md border bg-card p-0.5">
-                  {QUALITY_OPTIONS.map(({ value, label, sub, Icon }) => {
-                    const active = quality === value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => { setQuality(value); setQualityTouched(true); }}
-                        className={cn(
-                          "group flex flex-col items-center gap-0.5 rounded-sm px-2 py-2 transition-colors",
-                          active
-                            ? "text-white shadow-sm"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        )}
-                        style={active ? { backgroundColor: CLAUDE_ACCENT } : undefined}
-                      >
-                        <Icon className={cn("size-3.5", active ? "text-white" : "text-muted-foreground")} />
-                        <span className="text-xs font-semibold">{label}</span>
-                        <span className={cn(
-                          "text-[9px] uppercase tracking-widest",
-                          active ? "text-white/85" : "text-muted-foreground/70",
-                        )}>
-                          {sub}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Field>
-
-              {/* sample preview — moved here so the right column has room for prompts */}
-              {sampleMcq && (
-                <div className="space-y-2 pt-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Sample from this topic</Label>
-                    {filename && (
-                      <Button variant="outline" size="xs" onClick={() => onPreview(filename)}>
-                        <Eye />
-                        View all
-                      </Button>
+        {/* BODY — one scroll region on mobile, two independent panes on lg+ */}
+        <div className="grid flex-1 min-h-0 grid-cols-1 overflow-y-auto lg:overflow-hidden lg:grid-cols-[minmax(0,440px)_1fr]">
+          {step === 1 ? (
+            <>
+              {/* LEFT — basic config */}
+              <section className="scrollbar-thin overflow-visible border-b px-5 py-6 sm:px-7 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+                <div className="space-y-6">
+                  <Field label="Batch name">
+                    <Input
+                      value={batchName}
+                      onChange={(e) => { setBatchName(e.target.value); if (nameError) setNameError(false); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") goNext(); }}
+                      placeholder="e.g. Python list slicing"
+                      className={cn("h-10", nameError && "border-destructive focus-visible:ring-destructive/30")}
+                      autoFocus
+                    />
+                    {nameError && (
+                      <p className="text-[11px] text-destructive">Give this batch a name to continue.</p>
                     )}
-                  </div>
-                  <SamplePreviewCard mcq={sampleMcq} />
+                  </Field>
+
+                  <Field label="Questions">
+                    <Counter value={count} min={1} max={50} onChange={setCount} />
+                  </Field>
+
+                  <Field label="Difficulty">
+                    <SegmentedControl
+                      value={difficulty}
+                      onChange={(v) => changeDifficulty(v)}
+                      options={DIFFICULTY_OPTIONS}
+                    />
+                  </Field>
+
+                  <Field label="Model" hint={!qualityTouched ? "auto" : undefined}>
+                    <div className="grid grid-cols-3 gap-1.5 rounded-md border bg-card p-0.5">
+                      {QUALITY_OPTIONS.map(({ value, label, sub, Icon }) => {
+                        const active = quality === value;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => { setQuality(value); setQualityTouched(true); }}
+                            className={cn(
+                              "group flex flex-col items-center gap-0.5 rounded-sm px-2 py-2 transition-colors",
+                              active
+                                ? "text-white shadow-sm"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                            )}
+                            style={active ? { backgroundColor: CLAUDE_ACCENT } : undefined}
+                          >
+                            <Icon className={cn("size-3.5", active ? "text-white" : "text-muted-foreground")} />
+                            <span className="text-xs font-semibold">{label}</span>
+                            <span className={cn(
+                              "text-[9px] uppercase tracking-widest",
+                              active ? "text-white/85" : "text-muted-foreground/70",
+                            )}>
+                              {sub}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </Field>
                 </div>
-              )}
-            </div>
-          </section>
+              </section>
 
-          {/* RIGHT — quality rules + extra instructions + negative prompt */}
-          <section className="scrollbar-thin min-h-0 overflow-y-auto bg-muted/10 px-7 py-6">
-            <div className="flex h-full flex-col gap-6">
-              {/* quality rules */}
-              <QualityRulesPicker
-                mcqType={detectedType}
-                enabled={enabledRules}
-                onChange={setEnabledRules}
-              />
+              {/* RIGHT — sample preview */}
+              <section className="scrollbar-thin overflow-visible bg-muted/10 px-5 py-6 sm:px-7 lg:min-h-0 lg:overflow-y-auto">
+                <div className="flex items-center justify-between">
+                  <Label>Sample from this topic</Label>
+                  {filename && (
+                    <Button variant="outline" size="xs" onClick={() => onPreview(filename)}>
+                      <Eye />
+                      View all
+                    </Button>
+                  )}
+                </div>
+                <div className="mt-2">
+                  {sampleMcq
+                    ? <SamplePreviewCard mcq={sampleMcq} />
+                    : <p className="py-12 text-center text-sm text-muted-foreground">No sample preview available.</p>}
+                </div>
+              </section>
+            </>
+          ) : (
+            <>
+              {/* LEFT — prompts */}
+              <section className="scrollbar-thin overflow-visible border-b px-5 py-6 sm:px-7 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-2">
+                    <Label>
+                      Additional instructions{" "}
+                      <span className="font-normal normal-case tracking-normal text-muted-foreground">(optional)</span>
+                    </Label>
+                    <textarea
+                      value={extraPrompt}
+                      onChange={(e) => setExtraPrompt(e.target.value)}
+                      placeholder={`Anything beyond the standard prompt — e.g.\n• Focus on edge cases with empty inputs\n• Each question should reference a real-world scenario\n• Use single-letter variable names\n\nLeave blank for the default behaviour.`}
+                      className="scrollbar-thin h-44 w-full resize-y rounded-md border bg-card px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30 lg:h-56"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Appended to the standard prompt. Samples, JSON schema, count, topic, difficulty, and type are wired up automatically.
+                    </p>
+                  </div>
 
-              {/* extra instructions — grows */}
-              <div className="flex min-h-0 flex-1 flex-col gap-2">
-                <Label>Additional instructions <span className="font-normal normal-case tracking-normal text-muted-foreground">(optional)</span></Label>
-                <textarea
-                  value={extraPrompt}
-                  onChange={(e) => setExtraPrompt(e.target.value)}
-                  placeholder={`Anything beyond the standard prompt — e.g.\n• Focus on edge cases with empty inputs\n• Each question should reference a real-world scenario\n• Use single-letter variable names\n\nLeave blank for the default behaviour.`}
-                  className="scrollbar-thin min-h-[200px] w-full flex-1 resize-none rounded-md border bg-card px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
+                  <div className="flex flex-col gap-2">
+                    <Label>Avoid (negative prompt)</Label>
+                    <textarea
+                      value={negativePrompt}
+                      onChange={(e) => setNegativePrompt(e.target.value)}
+                      placeholder="e.g. don't use list.append; avoid questions about map/filter/reduce"
+                      className="scrollbar-thin h-24 w-full resize-y rounded-md border bg-card px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* RIGHT — quality rules as bullet checkboxes */}
+              <section className="scrollbar-thin overflow-visible bg-muted/10 px-5 py-6 sm:px-7 lg:min-h-0 lg:overflow-y-auto">
+                <QualityRulesPicker
+                  mcqType={detectedType}
+                  enabled={enabledRules}
+                  onChange={setEnabledRules}
                 />
-                <p className="text-[10px] text-muted-foreground">
-                  Appended to the standard prompt. The samples block, JSON schema, count, topic, difficulty, and type are all wired up automatically.
-                </p>
-              </div>
-
-              {/* negative prompt */}
-              <div className="space-y-2">
-                <Label>Avoid (negative prompt)</Label>
-                <textarea
-                  value={negativePrompt}
-                  onChange={(e) => setNegativePrompt(e.target.value)}
-                  rows={4}
-                  placeholder="e.g. don't use list.append; avoid questions about map/filter/reduce"
-                  className="scrollbar-thin w-full resize-none rounded-md border bg-card px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring/30"
-                />
-              </div>
-            </div>
-          </section>
+              </section>
+            </>
+          )}
         </div>
 
         {/* FOOTER */}
-        <footer className="flex shrink-0 items-center justify-end gap-2 border-t bg-card/30 px-7 py-3">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} size="lg">
-            <Play />
-            Start workflow
-          </Button>
+        <footer className="flex shrink-0 items-center justify-between gap-2 border-t bg-card/30 px-5 py-3 sm:px-7">
+          {step === 1 ? (
+            <>
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button onClick={goNext} size="lg">
+                Next
+                <ArrowRight />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setStep(1)}>
+                <ArrowLeft />
+                Back
+              </Button>
+              <Button onClick={submit} size="lg">
+                <Play />
+                Start workflow
+              </Button>
+            </>
+          )}
         </footer>
       </DialogContent>
     </Dialog>
@@ -307,6 +351,40 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
 // -----------------------------------------------------------------------------
 // Building blocks
 // -----------------------------------------------------------------------------
+
+function StepPill({
+  index, label, active, done, onClick,
+}: { index: number; label: string; active: boolean; done: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-left transition-colors",
+        active ? "bg-primary/10" : "hover:bg-muted",
+      )}
+    >
+      <span
+        className={cn(
+          "grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-semibold",
+          active
+            ? "bg-primary text-primary-foreground"
+            : done
+              ? "bg-primary/20 text-primary"
+              : "bg-muted text-muted-foreground",
+        )}
+      >
+        {done ? <Check className="size-3.5" /> : index}
+      </span>
+      <span className={cn(
+        "text-[11px] font-semibold uppercase tracking-widest",
+        active ? "text-foreground" : "text-muted-foreground",
+      )}>
+        {label}
+      </span>
+    </button>
+  );
+}
 
 function Label({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
@@ -476,7 +554,7 @@ function QualityRulesPicker({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label>
           Quality rules{" "}
@@ -502,32 +580,54 @@ function QualityRulesPicker({
           </button>
         </div>
       </div>
-      <div className="flex flex-wrap gap-1.5">
+
+      <ul className="divide-y divide-border overflow-hidden rounded-md border bg-card">
         {applicable.map((rule) => {
           const on = enabled.has(rule.id);
           return (
-            <button
-              key={rule.id}
-              type="button"
-              onClick={() => toggle(rule.id)}
-              title={rule.text}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition-colors",
-                on
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {on ? <Check className="size-3" /> : <Plus className="size-3 rotate-45" />}
-              {rule.label}
-            </button>
+            <li key={rule.id}>
+              <button
+                type="button"
+                onClick={() => toggle(rule.id)}
+                aria-pressed={on}
+                className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+              >
+                <span
+                  className={cn(
+                    "mt-0.5 grid size-4 shrink-0 place-items-center rounded-[5px] border transition-colors",
+                    on
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-muted-foreground/40 bg-transparent",
+                  )}
+                >
+                  {on && <Check className="size-3" strokeWidth={3} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className={cn(
+                    "block text-[12px] font-medium leading-tight",
+                    on ? "text-foreground" : "text-muted-foreground",
+                  )}>
+                    {rule.label}
+                  </span>
+                  <span className="mt-0.5 block text-[10.5px] leading-snug text-muted-foreground/70">
+                    {ruleSummary(rule.text)}
+                  </span>
+                </span>
+              </button>
+            </li>
           );
         })}
-      </div>
+      </ul>
       <p className="text-[10px] text-muted-foreground">
-        Hover a chip for the full rule text. Disabled rules are omitted from the prompt sent to Claude.
+        Toggle a rule on or off. Disabled rules are omitted from the prompt sent to Claude.
       </p>
     </div>
   );
 }
 
+/** First sentence of a rule's full text — enough context without the wall of words. */
+function ruleSummary(text: string): string {
+  const afterColon = text.includes(":") ? text.split(":").slice(1).join(":") : text;
+  const firstSentence = afterColon.split(/(?<=\.)\s/)[0].trim();
+  return firstSentence.length > 120 ? firstSentence.slice(0, 117) + "…" : firstSentence;
+}
