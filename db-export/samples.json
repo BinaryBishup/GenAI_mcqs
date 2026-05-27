@@ -1,0 +1,1999 @@
+[
+  {
+    "id": "5da40456-cac3-41ee-bfc5-623c34d03a3c",
+    "source_file": "Core Java - Access Modifiers - Application-general 1.xls",
+    "topic": "Core Java - Access Modifiers - Application",
+    "difficulty": "medium",
+    "type": "general",
+    "language": null,
+    "question": "Assume that you are creating a program that contains a class called \"BankAccount\" which has a balance field and a method called \"withdraw\". You want to ensure that the \"withdraw\" method can only be accessed by the \"BankAccount\" class and its subclasses. Which code snippet correctly defines the \"withdraw\" method with the appropriate access modifier? Analyze the given choices and select the correct option.",
+    "options": [
+      "```\nclass BankAccount {\n  private double balance;\n\n  protected void withdraw(double amount) {\n    balance -= amount;\n  }\n}\n```",
+      "```\nclass BankAccount {\n  private double balance;\n\n  public void withdraw(double amount) {\n    balance -= amount;\n  }\n\n  private void withdraw(double amount, String password) {\n    if (password.equals(\"secret\")) {\n      balance -= amount;\n    }\n  }\n}\n```",
+      "```\nclass BankAccount {\n  private double balance;\n\n  void withdraw(double amount) {\n    balance -= amount;\n  }\n}\n```",
+      "```\nclass BankAccount {\n  private double balance;\n\n  public void withdraw(double amount) {\n    balance -= amount;\n  }\n}\n\nclass SavingsAccount extends BankAccount {\n  protected void withdraw(double amount) {\n    super.withdraw(amount + 5);\n  }\n}\n```"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:57.549695+00:00"
+  },
+  {
+    "id": "823e1359-33e0-41c5-9cb2-b398815b0512",
+    "source_file": "Core Java - Access Modifiers - Application-general 1.xls",
+    "topic": "Core Java - Access Modifiers - Application",
+    "difficulty": "hard",
+    "type": "code",
+    "language": "java",
+    "question": "What will be the output of the following code snippet?\u200b\n\u200b\u200b",
+    "options": [
+      "The given code would compile successfully",
+      "Compile time error at line 2, as the function definition is missing",
+      "Compile time error at line 2, as the function test does not have a public access modifier",
+      "Compile time error at line 6, as the function test() should have a public access modifier"
+    ],
+    "correct_index": 3,
+    "code": "interface A{\n  void test();//line 2\n\n}\n\nclass B implements A{\n  void test(){//line 6\n\n  }\n}",
+    "created_at": "2026-05-26T12:21:57.549695+00:00"
+  },
+  {
+    "id": "db4d3a8d-e891-44bd-b600-4ad68b1eacc6",
+    "source_file": "Core Java - Access Modifiers - Application-general 1.xls",
+    "topic": "Core Java - Access Modifiers - Application",
+    "difficulty": "medium",
+    "type": "code",
+    "language": "java",
+    "question": "Consider the given Java code that contains two packages. The first package contains a class name \"FirstFloor\" and a protected member function \"print()\". The second package contains a class named \"SecondFloor\" which extends the \"FirstFloor\" class. The object of both classes is created to call the member function \"print()\".  What will be the output of the given code? Analyze the given choices and select the correct option.",
+    "options": [
+      "ob.print() will cause an error\n\nob1.print() will not cause any error",
+      "You are on floor\n\nYou are on floor",
+      "ob.print() will not cause an error\n\nob1.print() will cause any error",
+      "ob.print() will cause an error\n\nob1.print() will cause any error"
+    ],
+    "correct_index": 0,
+    "code": "package First;\npublic class FirstFloor {\n  int number = 1;\n  protected void print() {\n    System.out.println(\"You are on floor\");\n  }\n}\npackage Second;\nimport First.FirstFloor;\nclass SecondFloor extends FirstFloor {\n  public static void main(String[] args) {\n    FirstFloor ob = new FirstFloor();\n    ob.print();\n    SecondFloor ob1 = new SecondFloor();\n    ob1.print();\n  }\n}",
+    "created_at": "2026-05-26T12:21:57.549695+00:00"
+  },
+  {
+    "id": "112bb33c-4094-4b1f-ac47-65b921ca65d6",
+    "source_file": "Core Java - Classes Objects and Methods - Application-general 1.xls",
+    "topic": "Core Java - Classes Objects and Methods - Application",
+    "difficulty": "medium",
+    "type": "code",
+    "language": "java",
+    "question": "Assume that a company has a class named Employee which contains information about employees. The class contains a private integer variable named empId which stores the unique employee ID of each employee:\n\nWhich statement is true about accessing and modifying the empId variable of an Employee object from outside the Employee class? Select the correct option from the given choices.",
+    "options": [
+      "The empId variable can be accessed and modified using getter and setter methods, respectively.",
+      "The empId variable can be modified but not accessed.",
+      "The empId variable cannot be accessed or modified from outside the Employee class.",
+      "The empId variable can be accessed but not modified."
+    ],
+    "correct_index": 2,
+    "code": "public class Employee {\n    private int empId;\n    \n    public int getEmpId() {\n        return empId;\n    }\n    \n    public void setEmpId(int empId) {\n        this.empId = empId;\n    }\n}\n\nEmployee emp = new Employee();\nemp.setEmpId(1001);\nSystem.out.println(\"Employee ID: \" + emp.getEmpId()); // Output: Employee ID: 1001",
+    "created_at": "2026-05-26T12:21:57.797986+00:00"
+  },
+  {
+    "id": "4461bcda-fbda-4f24-81ec-f7babdc4006d",
+    "source_file": "Core Java - Classes Objects and Methods - Application-general 1.xls",
+    "topic": "Core Java - Classes Objects and Methods - Application",
+    "difficulty": "medium",
+    "type": "general",
+    "language": null,
+    "question": "Consider that you have an Employee class with the properties: name, age, salary, and department. The department property is another object of a class called Department which has the property's name and location. You need to create a method in the Employee class called getDepartmentLocation that returns the location of the department the employee belongs to. Assume that an Employee object has already been created and its department property has been initialized.\n\nWhat is the correct implementation of the getDepartmentLocation method? Analyze the given choices and select the correct option.",
+    "options": [
+      "```\npublic String getDepartmentLocation() {\n  return this.Department.getLocation();\n}\n```",
+      "```\npublic String getDepartmentLocation() {\n    return Department.location;\n}\n```",
+      "```\npublic String getDepartmentLocation() {\n    return department.getName();\n}\n```",
+      "```\npublic String getDepartmentLocation() {\n    return department.getLocation();\n}\n```"
+    ],
+    "correct_index": 3,
+    "code": null,
+    "created_at": "2026-05-26T12:21:57.797986+00:00"
+  },
+  {
+    "id": "a801aa0b-fb36-445e-96dc-b848b52eccaf",
+    "source_file": "Core Java - Classes Objects and Methods - Application-general 1.xls",
+    "topic": "Core Java - Classes Objects and Methods - Application",
+    "difficulty": "medium",
+    "type": "code",
+    "language": "java",
+    "question": "Assume that you are asked to develop a system for a school to manage student records and are provided with an incomplete code:\n\nYou decide to create a Student class to represent each student in the system. The class should have private attributes for the student's name, ID number, and GPA. It should also have methods to calculate the student's grade level based on their ID number, update their GPA, and get their name. Which option will you select to complete the code as desired? Analyze the given choices and select the correct option.",
+    "options": [
+      "```\npublic Student(String name, int id, double gpa) {\n        this.name = name;\n        idNumber = id;\n        this.gpa = gpa;\n    }\n\n    public int getGradeLevel() {\n        return idNumber / 1000 + 1;\n    }\n\n    public void updateGPA(double newGPA) {\n        gpa = newGPA;\n    }\n```",
+      "```\nStudent(String name, int id, double gpa) {\nname = this.name;\nidNumber = id;\ngpa = this.gpa;\n}\n\npublic int getGradeLevel(int idNumber) {\nreturn idNumber / 1000 + 1;\n}\n\npublic void updateGPA(double newGPA) {\ngpa = newGPA;\n}\n```",
+      "```\npublic Student(String n, int i, double g) {\n        name = n;\n        idNumber = i;\n        gpa = g;\n    }\n\n    public int calculateGradeLevel() {\n        return idNumber / 1000 + 1;\n    }\n\n    public void updateGPA(double newGPA) {\n        gpa = newGPA;\n    }\n```"
+    ],
+    "correct_index": 0,
+    "code": "public class Student {\n    private String name;\n    private int idNumber;\n    private double gpa;\n    \n    // TODO -complete the code\n    \n    public String getName() {\n        return name;\n    }\n}",
+    "created_at": "2026-05-26T12:21:57.797986+00:00"
+  },
+  {
+    "id": "0ed471f1-fafe-4325-aecc-1eb46fbc1e26",
+    "source_file": "Core Java - Encapsulation - Analysis-general.xls",
+    "topic": "Core Java - Encapsulation - Analysis",
+    "difficulty": "easy",
+    "type": "code",
+    "language": "java",
+    "question": "Assume that a team is tasked with implementing a simple TV Remote Control System where pressing the Power Button toggles the TV on and off. The remote object is encapsulated with a private OnValue field, which keeps track of the TV's status (on/off). The changeOnValue() method toggles this status whenever the button is pressed.\n\nA code is written as shown:\n\nAfter the first call to changeOnValue(), what will happen to the OnValue? Select the correct option from the given choices.",
+    "options": [
+      "It will become true",
+      "It will become false",
+      "It will become null",
+      "It will set to random values"
+    ],
+    "correct_index": 0,
+    "code": "class Remote {\nprivate boolean OnValue;\nRemote() {\nOnValue = false; \n}\npublic void changeOnValue() {\nSystem.out.println(\"The OnValue of the remote has toggled. Check TV.\");\nOnValue = !OnValue; \n}\n}\npublic class TvRemote {\npublic static void main(String[] args) {\nRemote remote = new Remote();\nremote.changeOnValue(); \nremote.changeOnValue();\nremote.changeOnValue();\n}\n}",
+    "created_at": "2026-05-26T12:21:57.901662+00:00"
+  },
+  {
+    "id": "3263c191-93ff-4787-bc48-a76a2f0f10e9",
+    "source_file": "Core Java - Encapsulation - Analysis-general.xls",
+    "topic": "Core Java - Encapsulation - Analysis",
+    "difficulty": "medium",
+    "type": "code",
+    "language": "java",
+    "question": "Assume that a company has three types of employees:\n\nRegular Employees \u2013 Their salaries and IDs are private and cannot be accessed directly.\n\nContract Employees \u2013 They have an hourly wage, and\n\nInterns \u2013 Their stipend is private.\n\nA code is written as shown:\n\nWhich class is tightly encapsulated in the given code? Select the correct option from the given choices.",
+    "options": [
+      "Only class Intern extends Employee {",
+      "Only class ContractEmployee extends Employee {",
+      "class ContractEmployee extends Employee { and\nclass Intern extends Employee {",
+      "ContractEmployee contractEmp = new ContractEmployee(101, 50000, 20);\nIntern intern = new Intern(102, 20000, 5000);"
+    ],
+    "correct_index": 0,
+    "code": "class Employee {\nprivate int empId;\nprivate double salary;\npublic Employee(int empId, double salary) {\nthis.empId = empId;\nthis.salary = salary;\n}\npublic int getEmpId() {\nreturn empId;\n}\npublic double getSalary() {\nreturn salary;\n}\n}\nclass ContractEmployee extends Employee { \nint hourlyWage; \npublic ContractEmployee(int empId, double salary, int hourlyWage) {\nsuper(empId, salary);\nthis.hourlyWage = hourlyWage;\n}\n}\nclass Intern extends Employee { \nprivate int stipend;\npublic Intern(int empId, double salary, int stipend) {\nsuper(empId, salary);\nthis.stipend = stipend;\n}\npublic int getStipend() {\nreturn stipend;\n}\n}\npublic class Main {\npublic static void main(String[] args) {\nContractEmployee contractEmp = new ContractEmployee(101, 50000, 20);\nIntern intern = new Intern(102, 20000, 5000);\nSystem.out.println(\"Contract Employee ID: \" + contractEmp.getEmpId());\nSystem.out.println(\"Contract Employee Hourly Wage: \" + contractEmp.hourlyWage); \n}\n}",
+    "created_at": "2026-05-26T12:21:57.901662+00:00"
+  },
+  {
+    "id": "5053eb3d-9b13-4bdf-9eba-75a049669a37",
+    "source_file": "Core Java - Encapsulation - Analysis-general.xls",
+    "topic": "Core Java - Encapsulation - Analysis",
+    "difficulty": "easy",
+    "type": "code",
+    "language": "java",
+    "question": "Consider that the given code contains details of CollegeStudent. Which option will you select to correct the given code in order to set the details of the college student in the method \"setCollegeStudent\"? Analyze the given choices and select the correct option.",
+    "options": [
+      "```\npublic class College {\n  // Private data member\n  private String collegeStudent;\n\n  // Setter method for collegeStudent\n  public void setCollegeStudent(String collegeStudent) {\n    this.collegeStudent= collegeStudent;\n  }\n}\n```",
+      "```\npublic class College {\n  // Private data member\n  private String collegeStudent;\n\n  // Setter method for collegeStudent\n  public void setCollegeStudent(String college) {\n    this.collegeStudent= collegeStudent;\n  }\n```",
+      "```\n}public class College {\n  // Private data member\n  private String collegeStudent;\n\n  // Setter method for collegeStudent\n  public void setCollegeStudent(String Student) {\n    this.Student= Student;\n  }\n}\n```",
+      "```\npublic class College {\n  // Private data member\n  private String collegeStudent;\n\n  // Setter method for collegeStudent\n  public void setCollegeStudent(String Student) {\n    this.collegeStudent= collegeStudent;\n  }\n}\n```"
+    ],
+    "correct_index": 0,
+    "code": "public class College {\n  // Private data member\n  private String collegeStudent;\n\n  // Setter method for collegeStudent\n  public void setCollegeStudent(String collegeStudent) {\n    this= collegeStudent;\n  }\n}",
+    "created_at": "2026-05-26T12:21:57.901662+00:00"
+  },
+  {
+    "id": "9c2b9993-88ee-4a60-8bc5-59ff29c3ef32",
+    "source_file": "Core Java - Encapsulation - Analysis-general.xls",
+    "topic": "Core Java - Encapsulation - Analysis",
+    "difficulty": "hard",
+    "type": "code",
+    "language": "java",
+    "question": "Consider that a team is working on a film management system for a streaming platform. In this system, each movie has specific details such as title and duration. The team needs to ensure that film details are properly encapsulated to avoid unauthorized modification and provide controlled access to these details.\n\nA code is written as depicted:\n\nHowever, while entering the duration, negative value is also getting accepted. Which approach should be used to resolve the stated issue? Select the correct option from the given choices.",
+    "options": [
+      "```\nModify the setter code to\npublic void setFilmDuration(int filmDuration) {\n  if (filmDuration > 0) {\n    this.filmDuration = filmDuration;\n  } else {\n    System.out.println(\"Film duration must be a positive number.\");\n  }\n}\n```",
+      "```\nModify the getter code to\n\n public int getFilmDuration() {\n  if (filmDuration > 0) {\n    this.filmDuration = filmDuration;\n  } else {\n    System.out.println(\"Film duration must be a positive number.\");\n  }\n}\n```",
+      "```\nAdd the below code in main method before updating duration\n if (filmDuration > 0) {\n   this.filmDuration = filmDuration;\n } else {\n   System.out.println(\"Film duration must be a positive number.\");\n }\n```",
+      "```\nAdd the given code in start of class Movie\n  if (filmDuration > 0) {\n    this.filmDuration = filmDuration;\n  } else {\n    System.out.println(\"Film duration must be a positive number.\");\n  }\n```"
+    ],
+    "correct_index": 0,
+    "code": "public class Film {\nprivate String filmName;\nprivate int filmDuration;\npublic Film(String filmName, int filmDuration) {\nthis.filmName = filmName;\nthis.filmDuration = filmDuration;\n}\npublic String getFilmName() {\nreturn filmName;\n}\npublic void setFilmName(String filmName) {\nthis.filmName = filmName;\n}\npublic int getFilmDuration() {\nreturn filmDuration;\n}\npublic void setFilmDuration(int filmDuration) {\nthis.filmDuration = filmDuration;\n}\npublic String getFilmDetails() {\nreturn \"Film Name: \" + filmName + \"\\n\" +\n\"Duration: \" + filmDuration + \" minutes\";\n}\npublic static void main(String[] args) {\nFilm film1 = new Film(\"Ab\", 136); \nSystem.out.println(film1.getFilmDetails());\nfilm1.setFilmDuration(150); \nfilm1.setFilmName(\"Ac\"); \nSystem.out.println(\"\\nUpdated Film Details:\\n\" + film1.getFilmDetails());\n}\n}",
+    "created_at": "2026-05-26T12:21:57.901662+00:00"
+  },
+  {
+    "id": "f6886c21-4ab5-4097-9693-dedb6cec4bf4",
+    "source_file": "Core Java - Encapsulation - Analysis-general.xls",
+    "topic": "Core Java - Encapsulation - Analysis",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "Which code among the 4 given options is read-only encapsulation? Analyze the given choices and select the correct option.",
+    "options": [
+      "```\nclass ReadOnly\n{\n\n  static String str1=\"This is read-only\";\n\n  public String getStr1() {\n    return str1;\n  }\n\n}\n```",
+      "```\nclass ReadOnly\n{\n  String str1=\"This is read-only\";\n  public String getStr1()\n  {\n    return str1;\n  }\n}\n```",
+      "```\nclass ReadOnly\n{\n  private String str1=\"This is read-only\";\n  public String getStr1()\n  {\n    return str1;\n  }\n  public String setStr1(String str1)\n  {\n    this.str1=str1;\n  }\n}\n```",
+      "```\nclass ReadOnly\n{\n\n  private String str1;\n  protected ReadOnly(String str1)\n  {\n    this.str1=str1;\n  }\n  public String getStr1() {\n    return str1;\n  }\n\n}\n```"
+    ],
+    "correct_index": 3,
+    "code": null,
+    "created_at": "2026-05-26T12:21:57.901662+00:00"
+  },
+  {
+    "id": "05283920-6c9f-485a-9efa-2772ffb59a2e",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to improve security by encrypting virtual machine disk images stored in the cloud. Which technique is this?",
+    "options": [
+      "Disk Encryption",
+      "Load Balancing",
+      "Failover",
+      "Data Replication"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "080988a4-1d5d-45d2-9c50-d373454ad994",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to isolate virtual machines from each other to prevent security breaches. Which virtualization feature ensures this?",
+    "options": [
+      "Network Segmentation",
+      "Load Balancing",
+      "Failover",
+      "Encryption"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "0da0fef1-ce3c-4ec1-9cfd-12bb77000496",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to reduce latency by caching static content closer to users worldwide. Which cloud service should they implement?",
+    "options": [
+      "Content Delivery Network (CDN)",
+      "Cold Storage",
+      "Backup as a Service (BaaS)",
+      "Disaster Recovery as a Service (DRaaS)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "0e2bd852-cc91-45c2-bf2a-e26349aeb4ac",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to run legacy applications on virtual machines but manage the OS and software themselves. Which cloud service model should they select?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Database as a Service (DBaaS)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "0e840486-f87d-4640-803b-14de08362bea",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company needs to keep sensitive financial data within its own data center but also wants to use cloud services for less sensitive workloads. Which deployment model fits this scenario?",
+    "options": [
+      "Public cloud only",
+      "Private cloud only",
+      "Hybrid cloud combining private and public",
+      "Community cloud shared with other companies"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "146ff22a-b4d1-47a1-be7d-c241da846cea",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developer wants to build an application using pre-configured databases and messaging services without managing the underlying infrastructure. Which cloud model supports this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Function as a Service (FaaS)"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "226b0083-dbd1-4bcf-946d-675e8d288aec",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A financial services firm wants to secure its clients\u2019 transaction data so that even if the data is intercepted, it cannot be understood by anyone without the proper key. Which cloud service feature should they use?",
+    "options": [
+      "Encryption",
+      "Backup as a Service (BaaS)",
+      "Disaster Recovery as a Service (DRaaS)",
+      "Content Delivery Network (CDN)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "236b2522-6e03-49a5-bd60-80545d9d7317",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to develop applications using a cloud service that abstracts infrastructure but still allows some control over the environment. Which model fits?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Network as a Service (NaaS)"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "2722361d-3495-4ccb-843a-c249cf329e10",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A system administrator wants to create multiple virtual servers on a single physical machine. Which software component is essential for this?",
+    "options": [
+      "Hypervisor",
+      "Load Balancer",
+      "Firewall",
+      "VPN"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "27eacf16-2a40-4495-af06-21d93f1f26d9",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A startup wants to deploy an application quickly without investing in physical servers or networking equipment. Which cloud benefit does this illustrate?",
+    "options": [
+      "Capital expenditure reduction",
+      "Increased latency",
+      "Manual provisioning",
+      "Fixed capacity"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "30340547-9817-47cd-b8c9-a76283e8dd96",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants secure remote access to cloud-hosted applications for employees. Which cloud service should they implement?",
+    "options": [
+      "Virtual Private Network (VPN)",
+      "Backup as a Service (BaaS)",
+      "Disaster Recovery as a Service (DRaaS)",
+      "Content Delivery Network (CDN)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "32acd8e6-7394-421d-ba0d-cb9ccf4c0904",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A team needs to access cloud services from various devices including laptops, tablets, and smartphones. Which cloud characteristic enables this flexibility?",
+    "options": [
+      "Broad network access",
+      "Resource pooling",
+      "Rapid elasticity",
+      "Measured service"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "35ec950f-270f-4a0a-bd5d-b2ef080d5b9a",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company requires virtual servers to install custom operating systems and software for specialized workloads. Which cloud service model is appropriate?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Function as a Service (FaaS)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "388a96b5-b4c3-4362-a4b8-09af5ea4437f",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to avoid vendor lock-in by using multiple cloud providers simultaneously for different workloads. Which deployment approach does this describe?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Multi-cloud",
+      "Hybrid cloud"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "3952c25e-d130-491d-bc56-ec8f61a78c0f",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "An organization wants to share cloud infrastructure with other companies in the same supply chain to improve collaboration and reduce costs. Which deployment model is appropriate?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Community cloud",
+      "Hybrid cloud"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "39847704-f477-446f-bf41-72a1f3740246",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business requires cloud storage with frequent read/write access and low latency. Which storage type should they choose?",
+    "options": [
+      "Block Storage",
+      "Object Storage",
+      "Cold Storage",
+      "Backup as a Service (BaaS)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "3cf44c1d-4585-417b-82e6-0ad6744cbf80",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to protect data in virtual machines by converting it into unreadable format during transmission. Which technique is this?",
+    "options": [
+      "Encryption",
+      "Load Balancing",
+      "Failover",
+      "Data Replication"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "3da07335-85de-4361-87e9-0125834ac212",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants cloud storage that automatically scales as data grows without manual intervention. Which feature should they select?",
+    "options": [
+      "Network Attached Storage",
+      "Cold Storage",
+      "Block Storage",
+      "Object Storage"
+    ],
+    "correct_index": 3,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "3df361bb-3de0-4808-89c3-0ae72a384559",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to migrate on-premises databases to the cloud with managed maintenance tasks like patching and backups. Which cloud service fits this need?",
+    "options": [
+      "Database as a Service (DBaaS)",
+      "Backup as a Service (BaaS)",
+      "Disaster Recovery as a Service (DRaaS)",
+      "Content Delivery Network (CDN)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "40020c81-bdea-49e4-96a6-b0a8594a4ab2",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to use a cloud service that automatically updates and patches the software they use without manual intervention. Which model is this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Storage as a Service (STaaS)"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "41f2e0df-9dd4-418e-a304-a99ef332ebfb",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A small business wants to avoid managing any physical infrastructure and prefers a cloud model where the provider manages everything, including hardware and software. Which model suits this need?",
+    "options": [
+      "On-premises cloud",
+      "Public cloud",
+      "Virtual private cloud",
+      "Community cloud"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "4811bfa9-56de-4b17-af30-c36cd59d9bc1",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to automate database backups with minimal manual intervention. Which cloud service should they select?",
+    "options": [
+      "Backup as a Service (BaaS)",
+      "Disaster Recovery as a Service (DRaaS)",
+      "Content Delivery Network (CDN)",
+      "Cold Storage"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "4cc35338-f2a1-4e59-bb15-e87b5fe64748",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "An operations team configures pipelines that run testing and deployment across SaaS, PaaS, and IaaS platforms with minimal human involvement. Which capability supports this pipeline design?",
+    "options": [
+      "Dedicated hosting on physical servers",
+      "Centralized logging for application diagnostics",
+      "Manual scheduling of nightly maintenance",
+      "Automation of multi-model cloud tasks"
+    ],
+    "correct_index": 3,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "4fe81a14-71d3-487e-a2c7-7cdbf79da4b6",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A system administrator wants to run virtual machines on top of an existing operating system. Which type of hypervisor should they use?",
+    "options": [
+      "Type 1 Hypervisor (Bare Metal)",
+      "Type 2 Hypervisor (Hosted)",
+      "Container Engine",
+      "Load Balancer"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "501026b3-32d2-47a3-80e9-61abbbaf554a",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to rent virtualized hardware resources like CPU, memory, and storage to build their own IT environment. Which cloud service model is this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Network as a Service (NaaS)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "56f483d8-810b-4128-8f7b-0225c84ad4be",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to use a cloud model that provides the highest level of resource isolation and security by dedicating hardware to a single organization, whether on-premises or hosted externally. Which model is this?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Community cloud",
+      "Hybrid cloud"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "592bfc71-e9e7-4de8-a393-44cea9cfa3f8",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to use cloud services but is concerned about data privacy and wants to control who accesses their data. Which cloud characteristic addresses this concern?",
+    "options": [
+      "Resource pooling",
+      "On-demand self-service",
+      "Security and compliance controls",
+      "Broad network access"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "59a8f4d0-f880-405b-939f-b517d48a6d3a",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developer wants to isolate applications in lightweight environments sharing the same OS kernel. Which virtualization method should they use?",
+    "options": [
+      "Virtual Machines",
+      "Containers",
+      "Bare Metal Servers",
+      "Hypervisors"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "603506ce-1074-4f56-902c-d047e9c83ff4",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developer wants to test new application features quickly without physical servers. Which cloud service model should they use?",
+    "options": [
+      "Container as a Service (CaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Function as a Service (FaaS)"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "609806a5-74f0-42d5-b8dc-196b9b7f5c0e",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A startup wants to launch its application quickly without investing in physical hardware and prefers a cloud model where resources are shared among many users. Which cloud deployment model should they choose?",
+    "options": [
+      "Private cloud with dedicated hardware",
+      "Public cloud with shared resources",
+      "Community cloud with partner companies",
+      "Hybrid cloud combining on-premises and cloud"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "625a89be-73e0-4e4c-886f-1f7920893084",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "An enterprise wants to maintain legacy applications on-premises but also use cloud services for new applications, requiring integration between both environments. Which deployment model applies?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Hybrid cloud",
+      "Community cloud"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "6f381b9b-eed7-4a23-9e10-837642653be1",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developers team needs a solution to create and deploy applications without managing servers or storage systems. What cloud service should the team consider?",
+    "options": [
+      "Software as a Service (SaaS)",
+      "Virtual application platform",
+      "Remote development service",
+      "Platform as a Service (PaaS)"
+    ],
+    "correct_index": 3,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "75f29588-135f-4e56-ba78-0a1d3307769d",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to reduce costs by paying only for the computing resources they actually use rather than fixed capacity. Which cloud pricing model supports this?",
+    "options": [
+      "Subscription-based pricing",
+      "Pay-as-you-go pricing",
+      "Upfront licensing fees",
+      "Fixed monthly billing"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "76f9255f-d4a8-4fbb-9613-0aa396772ada",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to ensure their cloud applications can handle sudden spikes in user traffic without downtime. Which cloud feature is critical for this?",
+    "options": [
+      "Fault tolerance",
+      "Elasticity",
+      "Manual scaling",
+      "Fixed resource allocation"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "77ce289d-8ab5-483d-a6c2-6b961f836ca9",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to share computing resources among multiple users while ensuring each user\u2019s data remains isolated. Which cloud principle supports this?",
+    "options": [
+      "Resource pooling",
+      "On-demand self-service",
+      "Rapid elasticity",
+      "Broad network access"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "783e9153-a3f8-4121-819b-c6767e39ac45",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to run virtual machines directly on hardware without an underlying operating system. Which virtualization type is this?",
+    "options": [
+      "Type 1 Hypervisor (Bare Metal)",
+      "Type 2 Hypervisor (Hosted)",
+      "Containerization",
+      "Cloud Storage"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "7b05d010-00d1-45a4-b41c-7badae486a4d",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to ensure that if one virtual machine fails, another can take over without service interruption. Which virtualization feature supports this?",
+    "options": [
+      "Load Balancing",
+      "Failover",
+      "Encryption",
+      "Data Backup"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "7bc654d2-ee25-46e3-842c-a5db9ffa0fc7",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to ensure that their cloud provider can quickly add more servers to handle increased traffic during a product launch. Which cloud feature supports this?",
+    "options": [
+      "Rapid elasticity",
+      "Resource pooling",
+      "On-demand self-service",
+      "Measured service"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "7c773395-f9ca-47d7-91c9-10debca8a5a9",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developer wants to deploy code that runs in response to events without managing servers or infrastructure. Which cloud service model is this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Function as a Service (FaaS)"
+    ],
+    "correct_index": 3,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "7eda5491-b46e-4250-9300-d0e64c54ba67",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to automate the deployment of applications and infrastructure using code to reduce errors and speed up delivery. Which cloud practice is this?",
+    "options": [
+      "Manual configuration",
+      "Infrastructure as Code (IaC)",
+      "Ad hoc scripting",
+      "Physical server setup"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "7edfc28e-e08f-4597-9556-708f6c48b9bf",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business experiences fluctuating workloads and wants to use a cloud model that allows them to keep critical data on-premises but scale out to the cloud during peak times. Which model is best?",
+    "options": [
+      "Public cloud only",
+      "Private cloud only",
+      "Hybrid cloud",
+      "Community cloud"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "7ff0e241-6b31-420b-9938-4ea0f667cc4e",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to access office productivity software hosted in the cloud without local installation. Which cloud service model provides this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Function as a Service (FaaS)"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "81115b5b-e89a-4204-97b6-70c36c2b7d16",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to use a cloud model that allows them to leverage public cloud scalability but keep sensitive workloads isolated on private infrastructure. Which model fits?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Hybrid cloud",
+      "Community cloud"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "86f7c6e6-d7fe-4227-8b50-2c31bda6c56d",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to protect virtual machine data by creating regular copies stored separately to recover from data loss. Which process is this?",
+    "options": [
+      "Backup",
+      "Load Balancing",
+      "Encryption",
+      "Failover"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "877acbba-b52b-4429-92a7-428d36778de7",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A cloud provider wants to allocate CPU, memory, and storage resources dynamically to virtual machines based on demand. Which virtualization capability is this?",
+    "options": [
+      "Resource Pooling",
+      "Load Balancing",
+      "Failover",
+      "Encryption"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "87c20b2b-4cee-41f3-a310-e4a595bba083",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to ensure business continuity by replicating data and applications to a secondary cloud site. Which service should they use?",
+    "options": [
+      "Backup as a Service (BaaS)",
+      "Disaster Recovery as a Service (DRaaS)",
+      "Content Delivery Network (CDN)",
+      "Cold Storage"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "87e7dd6e-d15a-4576-8862-97c8b4345316",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to archive old data rarely accessed but retained for compliance. Which cloud storage option is best?",
+    "options": [
+      "Cold Storage",
+      "Block Storage",
+      "Object Storage",
+      "Backup as a Service (BaaS)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "8a716857-baa8-4b10-a6d4-18967bcbb341",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to reduce costs by using a cloud model where multiple unrelated organizations share infrastructure but maintain separate data and applications. Which model is this?",
+    "options": [
+      "Private cloud",
+      "Public cloud",
+      "Community cloud",
+      "Hybrid cloud"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "8e3a57a7-1560-409c-bd01-05f433711a54",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to use cloud services but needs to ensure compliance with data residency laws requiring data to stay within a specific country. Which cloud deployment consideration is this?",
+    "options": [
+      "Service model selection",
+      "Data sovereignty",
+      "Resource pooling",
+      "Broad network access"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "9023bb24-ebc9-41fc-a630-4ed97d2dddb7",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to ensure maximum control over its cloud environment, including hardware and security, and does not want to share resources with others. Which deployment model should they select?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Community cloud",
+      "Hybrid cloud"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "935901ff-8206-4cce-aba0-1171137a7710",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to run virtual servers with full control over the operating system and software. Which cloud service model fits this requirement?",
+    "options": [
+      "Software as a Service (SaaS)",
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Function as a Service (FaaS)"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "93a6aff8-95e6-47e2-8eb5-2951173c4d58",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developer needs to deploy containerized applications and wants the cloud provider to manage orchestration and scaling. Which cloud service model is best?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Function as a Service (FaaS)"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "9556ca95-3e3c-4d16-9483-2fde3c6e0145",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to improve application performance by distributing workloads across several virtual machines. Which feature should they implement?",
+    "options": [
+      "Failover",
+      "Load Balancing",
+      "Encryption",
+      "Data Backup"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "97b72f4f-0d8c-42ce-b3b8-34277ca389e3",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A startup wants to minimize upfront costs and prefers a cloud model where infrastructure is shared and managed by a third party, accessible via the internet. Which model is best?",
+    "options": [
+      "On-premises cloud",
+      "Public cloud",
+      "Hybrid cloud",
+      "Virtual private cloud"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "a360aa0b-31a6-4229-965d-b72819b7f786",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "An organization wants to use a ready-made email application accessible via a web browser without installing software locally. Which cloud service model is this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Function as a Service (FaaS)"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "a650de44-ea1e-434e-b660-e7d1b6dd4381",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developer wants to run code snippets in the cloud without provisioning or managing servers. Which cloud service model should they use?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Function as a Service (FaaS)",
+      "Software as a Service (SaaS)"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "a717c202-7f69-4bb7-9b30-73d5099ebfaf",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to ensure that virtual machines can be migrated from one physical server to another without downtime. Which virtualization feature enables this?",
+    "options": [
+      "Live Migration",
+      "Encryption",
+      "Failover",
+      "Load Balancing"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "a8730d61-8366-49e0-bf3f-9c4a9b6de060",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to keep all data and applications within its own data center for compliance reasons but still use cloud technologies internally. Which model should they choose?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Hybrid cloud",
+      "Community cloud"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "a8debc0f-8e1a-4d99-bd76-d9a82b47cb57",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A development team needs low-level virtual machines as building blocks for higher platform and software layers. Which cloud layer satisfies this?",
+    "options": [
+      "Managed platform tier for runtimes",
+      "Hosted software suite for end users",
+      "Base compute layer exposing primitives",
+      "Edge delivery network caching content"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "ac80374e-55c4-4bff-874d-85834b637f8b",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to avoid vendor lock-in by designing applications that can run on multiple cloud providers. Which cloud design principle supports this?",
+    "options": [
+      "Scalability",
+      "Portability",
+      "Elasticity",
+      "Measured service"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "aecb1ed6-3b8e-4558-9e17-5a318178650f",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to use a cloud service that delivers software applications over the internet on a subscription basis. Which model fits this description?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Storage as a Service (STaaS)"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "b264268f-89bc-4ad3-9dba-b0e9c16fa44b",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developer wants to build and test applications in a cloud environment that provides pre-configured development tools and runtime environments. Which cloud service model is this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Network as a Service (NaaS)"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "b2a7a701-37b5-47b0-93d6-94c30603ce81",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "Assume that a global enterprise with thousands of users needs regular backups of critical data across multiple regions while optimizing storage costs and performance. What cloud solution will you recommend for the enterprise?",
+    "options": [
+      "Global Backup as a Service",
+      "Geo-redundant Storage",
+      "Cross-region Replication with Data Deduplication",
+      "Cold Storage with Local Redundancy"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "b6c4f202-f240-4b72-865e-b22fbe6c8bf0",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developer wants to package an application with all its dependencies to run consistently across different environments. Which virtualization technology helps achieve this?",
+    "options": [
+      "Virtual Machines",
+      "Containers",
+      "Load Balancers",
+      "Encryption"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "b751b125-10d0-4da0-ad05-0321cd1d51fe",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to monitor and manage cloud resource usage and costs in real-time. Which cloud service feature supports this?",
+    "options": [
+      "Measured Service",
+      "Backup as a Service (BaaS)",
+      "Disaster Recovery as a Service (DRaaS)",
+      "Content Delivery Network (CDN)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "b7b9405a-e161-4cde-a46f-1708d02348ec",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to monitor their cloud resource usage and costs in real-time to optimize spending. Which cloud characteristic enables this?",
+    "options": [
+      "Measured service",
+      "Resource pooling",
+      "Broad network access",
+      "Rapid elasticity"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "b7df63a2-b2fd-461a-b2db-8be48a98ee3a",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to automate the creation and deployment of virtual machines to speed up provisioning. Which cloud capability supports this?",
+    "options": [
+      "Orchestration",
+      "Encryption",
+      "Failover",
+      "Data Backup"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "bb8ad3a0-02be-4bee-96a3-35697f8fff91",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "An organization collaborates with several other companies in the same industry to share infrastructure and security policies for common regulatory compliance. Which cloud deployment model is this?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Community cloud",
+      "Hybrid cloud"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "bbeb0a3f-a8b2-433d-9331-5bd31b01366d",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business needs fast access to frequently used data distributed globally to improve user experience. Which cloud service should they use?",
+    "options": [
+      "Content Delivery Network (CDN)",
+      "Cold Storage",
+      "Backup as a Service (BaaS)",
+      "Disaster Recovery as a Service (DRaaS)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "bc40aeaa-9399-4bc7-a699-3ca0325142f9",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A government agency requires a cloud environment that is isolated from public access but can be shared securely with other government departments. Which deployment model fits?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Community cloud",
+      "Hybrid cloud"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "bfca9a98-ef67-4c70-8421-e77f2aea7f13",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developer wants to deploy an application without worrying about managing the underlying operating system or hardware. Which cloud service model should they use?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Network as a Service (NaaS)"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "c02d654a-f16f-43ae-8e72-930c0a792832",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developer wants to focus on writing code and deploying applications without worrying about patching or scaling the runtime environment. Which cloud service model supports this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Storage as a Service (STaaS)"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "c06903a4-77cb-4501-9f01-9c22746bfe27",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to ensure that virtual machines can be quickly restored to a previous state after a failure. Which virtualization feature supports this?",
+    "options": [
+      "Snapshots",
+      "Load Balancing",
+      "Encryption",
+      "Failover"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "c07dd951-5874-4ea7-9497-07c8790499d8",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to collaborate with partners on a shared cloud infrastructure to develop joint applications while keeping their own data private. Which cloud model should they use?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Community cloud",
+      "Hybrid cloud"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "c5324a9f-8aaf-4709-aec8-28c757e2f039",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to use cloud services that provide virtual networks and connectivity options as a service. Which cloud model is this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Network as a Service (NaaS)"
+    ],
+    "correct_index": 3,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "c6cab87c-c40d-4561-9b25-baa93016bbb5",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A team wants to use a cloud service that provides development tools, databases, and middleware to build applications quickly. Which model fits this need?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Storage as a Service (STaaS)"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "cd9ea6de-daaf-4d0e-89e7-9680b4df6cd2",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to use a cloud service that provides managed databases without worrying about backups, scaling, or patching. Which model is this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Database as a Service (DBaaS)"
+    ],
+    "correct_index": 3,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "d010bb5c-cc83-4eae-bd6a-a3ba3f281e1f",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to ensure that their cloud infrastructure can recover quickly from hardware failures without data loss. Which cloud capability is essential?",
+    "options": [
+      "Fault tolerance",
+      "Manual backup",
+      "Fixed capacity",
+      "Static IP addressing"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "d13aca0d-6fd4-4df9-9d83-15f396fbd225",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to use a cloud service where the provider manages everything from hardware to application software, and users only configure settings. Which model is this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Network as a Service (NaaS)"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "d1bb6e60-2386-4941-b8db-4a763fab3140",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company needs a cloud environment that offers dedicated resources and enhanced security but is managed by a third-party provider off-premises. Which deployment model is this?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Hybrid cloud",
+      "Community cloud"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "d21b7ead-f953-4478-84e5-229e32d5e007",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to ensure that cloud resources are available whenever needed without delays caused by manual requests. Which cloud characteristic supports this?",
+    "options": [
+      "On-demand self-service",
+      "Resource pooling",
+      "Broad network access",
+      "Measured service"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "d5176258-903e-44b4-93ce-c4addc07c5b4",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to improve application performance by storing frequently accessed data closer to users in multiple geographic locations. Which cloud concept does this describe?",
+    "options": [
+      "Content Delivery Network (CDN)",
+      "Fault tolerance",
+      "Elasticity",
+      "Resource pooling"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "d563f9c0-1a34-438f-a775-3a2373c1f23c",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to distribute software updates globally with minimal delay. Which cloud service should they use?",
+    "options": [
+      "Content Delivery Network (CDN)",
+      "Backup as a Service (BaaS)",
+      "Disaster Recovery as a Service (DRaaS)",
+      "Cold Storage"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "d7e6468f-580d-4e14-927f-62d59fbacd94",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to store large amounts of infrequently accessed data at the lowest possible cost. Which cloud storage service should they choose?",
+    "options": [
+      "Hot Storage",
+      "Cold Storage",
+      "Block Storage",
+      "Object Storage"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "da220397-86fe-41c0-bc95-79dcda0c4014",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "Assume that a company wants to manage traffic spikes efficiently across multiple virtual machines. Which feature will help the company balance the load efficiently?",
+    "options": [
+      "Encryption",
+      "Failover",
+      "Data Replication",
+      "Load Balancing"
+    ],
+    "correct_index": 3,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "dbd46274-49f0-4f63-955b-7cd394a32107",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to quickly test new software without investing in hardware and prefers a cloud model that offers on-demand resources accessible over the internet. Which model fits?",
+    "options": [
+      "Private cloud",
+      "Public cloud",
+      "Hybrid cloud",
+      "Community cloud"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "e177d340-53ac-4105-b6c1-a7d6fdb3be79",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company needs to control the operating system and middleware but wants the cloud provider to manage physical servers and networking. Which service model fits this?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Database as a Service (DBaaS)"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "e2029aaa-a6b5-4984-8311-3dfb2f196e64",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company needs scalable storage for unstructured data like images and videos. Which cloud storage service is ideal?",
+    "options": [
+      "Block Storage",
+      "Object Storage",
+      "Cold Storage",
+      "Backup as a Service (BaaS)"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "e447427e-12c1-45e3-99f9-2157278916c7",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to collaborate on a cloud platform with other organizations that have similar security and compliance requirements but are not part of the same company. Which model suits this?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Community cloud",
+      "Hybrid cloud"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "e5edbf0d-798d-4e34-8864-19463cfc44c6",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A cloud administrator wants to monitor and manage the performance of virtual machines and physical hosts centrally. Which tool or feature is essential?",
+    "options": [
+      "Virtual Machine Manager",
+      "Load Balancer",
+      "Encryption Service",
+      "Failover Mechanism"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "e80aeb24-6498-4561-954a-69dd9713314b",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to run multiple operating systems on a single physical server to optimize hardware usage. Which technology enables this?",
+    "options": [
+      "Virtual Machines",
+      "Containers",
+      "Dedicated Servers",
+      "Content Delivery Network"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "ee0af922-d489-4c2f-9918-5745ff635ef9",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A business wants to avoid managing software updates and maintenance for their customer relationship management (CRM) system. Which cloud service model should they use?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Network as a Service (NaaS)"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "ee7f1790-590b-4d26-8364-88918fece5d0",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to reduce hardware costs by running multiple virtual machines on fewer physical servers. Which benefit of virtualization does this illustrate?",
+    "options": [
+      "Scalability",
+      "Resource Optimization",
+      "Data Replication",
+      "Encryption"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "f228f3ae-b8ab-40d7-a06a-0b317d810b83",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to quickly provision new servers during peak demand without manual intervention. Which cloud feature allows this dynamic resource allocation?",
+    "options": [
+      "Elasticity to scale resources up or down",
+      "Fixed capacity with reserved servers",
+      "Manual hardware installation",
+      "Static IP addressing"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "f7f313b4-8203-4305-9d21-8a20aa9b0e59",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A developer wants to use pre-built software applications hosted on the cloud without installing anything locally. Which cloud service model fits this need?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Function as a Service (FaaS)"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "f82cf99c-a4a5-4e98-8a46-c8f40c2e7252",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to develop and deploy applications without managing the underlying servers or operating systems. Which cloud service model should they choose?",
+    "options": [
+      "Infrastructure as a Service (IaaS)",
+      "Platform as a Service (PaaS)",
+      "Software as a Service (SaaS)",
+      "Network as a Service (NaaS)"
+    ],
+    "correct_index": 1,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "fda6b78e-ded7-459d-a2de-2843bb1445e1",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Virtualization - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A company wants to maintain copies of virtual machine data in different locations to ensure availability in case of failure. Which process is this?",
+    "options": [
+      "Data Replication",
+      "Encryption",
+      "Load Balancing",
+      "Failover"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "fdc91fa1-f65c-4430-9d32-567f4de3f122",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Introduction to Cloud Computing - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A web application experiences a server crash, yet users continue working without any visible interruption in service. Which cloud capability maintains operation when individual components fail?",
+    "options": [
+      "Horizontal scaling for increased throughput",
+      "Centralized monitoring for performance alerts",
+      "Fault tolerance using redundant systems",
+      "Caching layer for faster responses"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "fdd9ae8d-2844-487b-b0ac-07c181ab7936",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Deployment Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "An enterprise wants to keep critical applications on-premises but use cloud services for backup and disaster recovery. Which deployment model should they use?",
+    "options": [
+      "Public cloud",
+      "Private cloud",
+      "Hybrid cloud",
+      "Community cloud"
+    ],
+    "correct_index": 2,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  },
+  {
+    "id": "fe40bf5e-59a1-4291-b8e1-5233602d4eff",
+    "source_file": "sampleCloud.xls",
+    "topic": "Cloud Phase 2 V1 - Cloud Service Models - Application",
+    "difficulty": "easy",
+    "type": "general",
+    "language": null,
+    "question": "A SaaS provider hosts and maintains an application while a customer configures data sharing rules and enforces user authentication. What is the key benefit of this shared responsibility?",
+    "options": [
+      "Efficiently dividing security and operational tasks",
+      "Reducing the need for software development",
+      "Minimizing infrastructure costs for the provider",
+      "Eliminating the need for compliance checks"
+    ],
+    "correct_index": 0,
+    "code": null,
+    "created_at": "2026-05-26T12:21:58.040383+00:00"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "exported_at": "2026-05-27T16:55:00+05:30",
+  "source_project_id": "qypaxhyzgyijfexkfvsk",
+  "source_url": "https://qypaxhyzgyijfexkfvsk.supabase.co",
+  "tables": {
+    "samples": 111,
+    "plag_corpus": 0,
+    "runs": 32,
+    "mcqs": 241,
+    "run_events": 1132
+  },
+  "files": {
+    "01-schema.sql": "DDL (extensions, tables, indexes, RPCs) — run first.",
+    "02-data.sql": "INSERTs using jsonb_populate_recordset — run second.",
+    "*.json": "Raw per-table dumps for re-use / inspection."
+  }
+}

@@ -9,7 +9,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "seed:samples": "tsx scripts/seed-samples.ts",
-    "build:corpus": "tsx scripts/build-corpus.ts"
+    "build:corpus": "tsx scripts/build-corpus.ts",
+    "db:dump": "tsx scripts/dump-db.ts",
+    "db:restore": "tsx scripts/restore-db.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",

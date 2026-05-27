@@ -1,0 +1,616 @@
+[
+  {
+    "id": "03b3261a-f582-4fa9-8ce3-c4dd00ba2293",
+    "status": "done",
+    "topic": "HTML Lengthy Questions",
+    "difficulty": "medium",
+    "mcq_type": "general",
+    "count": 5,
+    "quality": "balanced",
+    "languages": [],
+    "sample_file_ids": [
+      "HTML5 - Elements - Analysis-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-25T01:20:35.001922+00:00",
+    "finished_at": "2026-05-25T01:21:12.596+00:00"
+  },
+  {
+    "id": "0da7153f-50c1-409a-b2f0-7b35df1637d5",
+    "status": "error",
+    "topic": "xcv",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 5,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Encapsulation - Analysis-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "generation parse failed: Bad control character in string literal in JSON at position 369 (line 7 column 234). stop_reason=end_turn usage=in=4530 out=2914 response_preview=\"```json\\n[\\n  {\\n    \\\"id\\\": \\\"encap_001\\\",\\n    \\\"type\\\": \\\"code\\\",\\n    \\\"topic\\\": \\\"Core Java - Encapsulation - Access Control\\\",\\n    \\\"difficulty\\\": \\\"medium\\\",\\n    \\\"question\\\": \\\"A financial institution is building a bank account system where each account must protect its balance from unauthorized changes. The balance field should be private and modified only through validated setter methods.\\n\\nA code is written as depicted:\\n\\nWhich implementation correctly enforces encapsulation on the balance field?\\\",\\n    \\\"options\\\": [\\n      \\\"```java\\\\nclass BankAccount {\\\\n  private double balance;\\\\n  public BankAccount(double ba...\"",
+    "started_at": "2026-05-26T10:26:02.354351+00:00",
+    "finished_at": "2026-05-26T10:26:20.51+00:00"
+  },
+  {
+    "id": "196bc7f8-9f0e-4f4a-9f8f-7067c208a257",
+    "status": "error",
+    "topic": "Core Java - Classes Objects and Methods",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 5,
+    "quality": "balanced",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Access Modifiers - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "Missing required env var: JUDGE0_RAPIDAPI_KEY",
+    "started_at": "2026-05-26T10:12:07.697248+00:00",
+    "finished_at": "2026-05-26T10:12:34.896+00:00"
+  },
+  {
+    "id": "1e304b44-547e-448c-abbc-1bad6d8af4ae",
+    "status": "error",
+    "topic": "Java Design Patterns",
+    "difficulty": "medium",
+    "mcq_type": "general",
+    "count": 20,
+    "quality": "balanced",
+    "languages": [],
+    "sample_file_ids": [
+      "Java - Design Patterns - Analysis-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "Unexpected end of JSON input",
+    "started_at": "2026-05-21T21:39:21.633372+00:00",
+    "finished_at": "2026-05-21T21:40:24.927+00:00"
+  },
+  {
+    "id": "26353d8a-5ae2-48e3-a93c-79967cef9d9d",
+    "status": "done",
+    "topic": "Java Design Patterns Test Samples",
+    "difficulty": "medium",
+    "mcq_type": "general",
+    "count": 10,
+    "quality": "balanced",
+    "languages": [],
+    "sample_file_ids": [
+      "Java - Design Patterns - Analysis-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-25T12:47:40.850671+00:00",
+    "finished_at": "2026-05-25T12:48:37.865+00:00"
+  },
+  {
+    "id": "2dd6213e-44e5-4125-b917-55819dc78e8e",
+    "status": "error",
+    "topic": "New",
+    "difficulty": "medium",
+    "mcq_type": "general",
+    "count": 5,
+    "quality": "fast",
+    "languages": [
+      "python"
+    ],
+    "sample_file_ids": [
+      "Java - Design Patterns - Application-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "401 {\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key\"},\"request_id\":\"req_011CbGKGsdaPSnNYHfupvJqg\"}",
+    "started_at": "2026-05-21T20:06:06.463508+00:00",
+    "finished_at": "2026-05-21T20:06:07.714+00:00"
+  },
+  {
+    "id": "37ffb286-6d68-47e5-8369-5e943bdcd560",
+    "status": "error",
+    "topic": "Cloud ",
+    "difficulty": "easy",
+    "mcq_type": "general",
+    "count": 50,
+    "quality": "balanced",
+    "languages": [],
+    "sample_file_ids": [
+      "sampleCloud.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "Streaming is strongly recommended for operations that may take longer than 10 minutes. See https://github.com/anthropics/anthropic-sdk-python#streaming-responses for more details",
+    "started_at": "2026-05-26T12:27:21.578125+00:00",
+    "finished_at": "2026-05-26T12:27:22.43+00:00"
+  },
+  {
+    "id": "3a63bf1b-3fee-438b-9be9-852ca8ef5b07",
+    "status": "done",
+    "topic": "Java Design test 2",
+    "difficulty": "medium",
+    "mcq_type": "general",
+    "count": 5,
+    "quality": "balanced",
+    "languages": [],
+    "sample_file_ids": [
+      "Java - Design Patterns - Analysis-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-25T12:52:27.57435+00:00",
+    "finished_at": "2026-05-25T12:53:17.662+00:00"
+  },
+  {
+    "id": "3b5f1513-1808-4bf8-b9b0-b575052476dd",
+    "status": "done",
+    "topic": "Samples",
+    "difficulty": "easy",
+    "mcq_type": "general",
+    "count": 5,
+    "quality": "fast",
+    "languages": [
+      "python"
+    ],
+    "sample_file_ids": [
+      "C - Linked list - Application-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-21T20:51:56.507848+00:00",
+    "finished_at": "2026-05-21T20:52:08.036+00:00"
+  },
+  {
+    "id": "4e110581-5e12-4c31-8f10-e36d742a8d1a",
+    "status": "done",
+    "topic": "Cloud ",
+    "difficulty": "easy",
+    "mcq_type": "general",
+    "count": 50,
+    "quality": "balanced",
+    "languages": [],
+    "sample_file_ids": [
+      "sampleCloud.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-26T12:32:21.407721+00:00",
+    "finished_at": "2026-05-26T12:35:46.458+00:00"
+  },
+  {
+    "id": "4e53d25d-4af9-4d96-92ae-8d357267a64e",
+    "status": "done",
+    "topic": "Html Sample",
+    "difficulty": "hard",
+    "mcq_type": "general",
+    "count": 15,
+    "quality": "balanced",
+    "languages": [],
+    "sample_file_ids": [
+      "HTML5 - Elements - Analysis-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-21T21:49:39.482501+00:00",
+    "finished_at": "2026-05-21T21:51:49.306+00:00"
+  },
+  {
+    "id": "5403fb41-3d1c-4975-86b8-3215c61f8079",
+    "status": "done",
+    "topic": "C - Linked Lists Questions",
+    "difficulty": "easy",
+    "mcq_type": "general",
+    "count": 5,
+    "quality": "fast",
+    "languages": [
+      "python"
+    ],
+    "sample_file_ids": [
+      "C - Linked list - Analysis-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-21T20:55:08.359382+00:00",
+    "finished_at": "2026-05-21T20:55:20.297+00:00"
+  },
+  {
+    "id": "55c98576-e25b-4e1f-8fbf-a7c008dbea32",
+    "status": "done",
+    "topic": "Java",
+    "difficulty": "hard",
+    "mcq_type": "general",
+    "count": 50,
+    "quality": "balanced",
+    "languages": [],
+    "sample_file_ids": [
+      "Java - Design Patterns - Analysis-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-22T05:53:54.154743+00:00",
+    "finished_at": "2026-05-22T05:58:34.836+00:00"
+  },
+  {
+    "id": "58f978d7-21f6-4680-9657-841a2675e20e",
+    "status": "done",
+    "topic": "cloud-diversity-test",
+    "difficulty": "medium",
+    "mcq_type": "general",
+    "count": 10,
+    "quality": "fast",
+    "languages": [],
+    "sample_file_ids": [
+      "sampleCloud.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-26T12:43:10.906292+00:00",
+    "finished_at": "2026-05-26T12:43:32.768+00:00"
+  },
+  {
+    "id": "64418458-7841-4762-86b7-62545ce162bd",
+    "status": "error",
+    "topic": "jk",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 5,
+    "quality": "balanced",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "generation parse failed: Unexpected token 'j', \"java\\npubl\"... is not valid JSON. stop_reason=end_turn usage=in=2397 out=2616 response_preview=\"[\\n  {\\n    \\\"id\\\": \\\"jk-shape-b-1\\\",\\n    \\\"type\\\": \\\"general\\\",\\n    \\\"topic\\\": \\\"Core Java - Classes Objects and Methods - Application\\\",\\n    \\\"difficulty\\\": \\\"medium\\\",\\n    \\\"question\\\": \\\"Consider that you have a Library class with the properties: title, author, and shelf, where shelf is an object of a class called Shelf which has the properties sectionName and floorNumber. You need to create a method in the Library class called getShelfSection that returns the section name of the shelf where the book is stored. Assume that a Library object has already been created and its shelf property has been properly initi...\"",
+    "started_at": "2026-05-26T10:22:13.565035+00:00",
+    "finished_at": "2026-05-26T10:22:50.73+00:00"
+  },
+  {
+    "id": "6536ca73-3336-4c95-9b9b-5e0939302766",
+    "status": "error",
+    "topic": "post-fix-test",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 3,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 1,
+    "error_message": "generation parse failed: Unterminated string in JSON at position 668 (line 9 column 8). stop_reason=end_turn usage=in=3729 out=1295 response_preview=\"```json\\n[\\n  {\\n    \\\"id\\\": \\\"postfix_loop_increment\\\",\\n    \\\"type\\\": \\\"general\\\",\\n    \\\"topic\\\": \\\"Core Java - Post-increment Operators - Application\\\",\\n    \\\"difficulty\\\": \\\"medium\\\",\\n    \\\"question\\\": \\\"Consider that you are building a counter-based validation system where you need to process items sequentially. You want to create a method that increments a counter after each item is processed and returns the count of items handled. The method should use a post-increment operator to track the number of iterations completed. Which option will you select to implement the incrementCounter method correctly? Analyze...\"",
+    "started_at": "2026-05-26T10:32:40.772683+00:00",
+    "finished_at": "2026-05-26T10:32:52.177+00:00"
+  },
+  {
+    "id": "7711afc4-82b7-45c6-ba64-2ed5ed45df1c",
+    "status": "done",
+    "topic": "CSS Similar Length",
+    "difficulty": "medium",
+    "mcq_type": "general",
+    "count": 20,
+    "quality": "fast",
+    "languages": [],
+    "sample_file_ids": [
+      "CSS3 - Properties - Analysis-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-25T01:18:21.990386+00:00",
+    "finished_at": "2026-05-25T01:18:53.966+00:00"
+  },
+  {
+    "id": "7a8534bb-fb57-486d-acba-04b70a49687d",
+    "status": "error",
+    "topic": "Cloud",
+    "difficulty": "easy",
+    "mcq_type": "general",
+    "count": 50,
+    "quality": "balanced",
+    "languages": [],
+    "sample_file_ids": [
+      "sampleCloud.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "Streaming is strongly recommended for operations that may take longer than 10 minutes. See https://github.com/anthropics/anthropic-sdk-python#streaming-responses for more details",
+    "started_at": "2026-05-26T12:25:44.444247+00:00",
+    "finished_at": "2026-05-26T12:25:45.467+00:00"
+  },
+  {
+    "id": "95e4818f-e777-479d-81ab-cd476910ae3f",
+    "status": "error",
+    "topic": "mn",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 5,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "Missing required env var: JUDGE0_RAPIDAPI_KEY",
+    "started_at": "2026-05-26T10:38:56.744568+00:00",
+    "finished_at": "2026-05-26T10:39:18.707+00:00"
+  },
+  {
+    "id": "988c13b8-b1d4-4255-9021-3117442e4987",
+    "status": "error",
+    "topic": ";.",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 5,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Access Modifiers - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "generation parse failed: Unterminated string in JSON at position 531 (line 9 column 8). stop_reason=end_turn usage=in=3501 out=1717 response_preview=\"```json\\n[\\n  {\\n    \\\"id\\\": \\\"access_modifier_static_context\\\",\\n    \\\"type\\\": \\\"general\\\",\\n    \\\"topic\\\": \\\"Core Java - Access Modifiers - Application\\\",\\n    \\\"difficulty\\\": \\\"medium\\\",\\n    \\\"question\\\": \\\"Assume you are designing a utility class called \\\\\\\"Logger\\\\\\\" that provides logging methods for your application. You want the \\\\\\\"log\\\\\\\" method to be callable only from within the same package but not from external packages or subclasses. Which code snippet correctly defines the \\\\\\\"log\\\\\\\" method with the appropriate access modifier?\\\",\\n    \\\"options\\\": [\\n      \\\"```java\\\\nclass Logger {\\\\n  void log(String message) {\\\\n    Sy...\"",
+    "started_at": "2026-05-26T10:25:05.732219+00:00",
+    "finished_at": "2026-05-26T10:25:19.258+00:00"
+  },
+  {
+    "id": "a63225a6-2688-4975-8f6a-021809b950ba",
+    "status": "done",
+    "topic": "final-fix-test-2",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 3,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 1,
+    "error_message": null,
+    "started_at": "2026-05-26T10:34:31.421589+00:00",
+    "finished_at": "2026-05-26T10:34:45.654+00:00"
+  },
+  {
+    "id": "aaaac456-a3d7-4465-bbaf-67280a7420a8",
+    "status": "error",
+    "topic": "format-parity-test",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 5,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "generation parse failed: Unterminated string in JSON at position 658 (line 9 column 8). stop_reason=end_turn usage=in=3685 out=2665 response_preview=\"```json\\n[\\n  {\\n    \\\"id\\\": \\\"shape_b_constructor_initialization\\\",\\n    \\\"type\\\": \\\"general\\\",\\n    \\\"topic\\\": \\\"Core Java - Classes Objects and Methods - Application\\\",\\n    \\\"difficulty\\\": \\\"medium\\\",\\n    \\\"question\\\": \\\"Consider that you are designing a Bank class with private attributes for accountNumber, accountHolder, and balance. The class requires a constructor to initialize these attributes and a method named getBalance that returns the current balance. You also need a method called deposit that adds funds to the account. Which option correctly implements the constructor and these methods? Analyze the given...\"",
+    "started_at": "2026-05-26T10:24:21.522411+00:00",
+    "finished_at": "2026-05-26T10:24:40.045+00:00"
+  },
+  {
+    "id": "af141fa6-758a-48af-a68c-82ba7d71bc77",
+    "status": "error",
+    "topic": "cvxzv",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 5,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Encapsulation - Analysis-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "generation parse failed: Unterminated string in JSON at position 406 (line 9 column 8). stop_reason=end_turn usage=in=4532 out=2281 response_preview=\"```json\\n[\\n  {\\n    \\\"id\\\": \\\"encap_validate_setter\\\",\\n    \\\"type\\\": \\\"general\\\",\\n    \\\"topic\\\": \\\"Core Java - Encapsulation - Validation\\\",\\n    \\\"difficulty\\\": \\\"medium\\\",\\n    \\\"question\\\": \\\"A banking system needs to ensure that account balance cannot be set to a negative value. Which implementation correctly encapsulates and validates the balance field? Select the correct option from the given choices.\\\",\\n    \\\"options\\\": [\\n      \\\"```java\\\\nclass Account {\\\\n  private double balance;\\\\n  public void setBalance(double balance) {\\\\n    if (balance >= 0) {\\\\n      this.balance = balance;\\\\n    } else {\\\\n      System.out.pr...\"",
+    "started_at": "2026-05-26T10:25:31.596912+00:00",
+    "finished_at": "2026-05-26T10:25:46.601+00:00"
+  },
+  {
+    "id": "bdab5d18-d6ee-4582-bca7-bdd8bb5c2cca",
+    "status": "error",
+    "topic": "local-curl-test",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 3,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 1,
+    "error_message": "generation parse failed: Unterminated string in JSON at position 688 (line 9 column 8). stop_reason=end_turn usage=in=3684 out=1717 response_preview=\"```json\\n[\\n  {\\n    \\\"id\\\": \\\"student_constructor_impl\\\",\\n    \\\"type\\\": \\\"general\\\",\\n    \\\"topic\\\": \\\"Core Java - Classes Objects and Methods - Application\\\",\\n    \\\"difficulty\\\": \\\"medium\\\",\\n    \\\"question\\\": \\\"Assume that you are developing a library management system and need to create a Book class to represent each book in the inventory. The class should have private attributes for the book's title, ISBN, and publication year. It should also have methods to retrieve the title, check if the book is recent based on the year, and update the publication year if needed. Which option correctly completes the class imp...\"",
+    "started_at": "2026-05-26T10:30:07.385999+00:00",
+    "finished_at": "2026-05-26T10:30:20.646+00:00"
+  },
+  {
+    "id": "be4aea87-c9c7-48cd-a5f4-fbd5456d5d00",
+    "status": "done",
+    "topic": "final-fix-test",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 3,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 1,
+    "error_message": null,
+    "started_at": "2026-05-26T10:34:15.180827+00:00",
+    "finished_at": "2026-05-26T10:34:31.267+00:00"
+  },
+  {
+    "id": "cbe7b95e-9a4c-4d24-8fc6-b78f0aaa09af",
+    "status": "error",
+    "topic": "Core Java",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 5,
+    "quality": "highest",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "Missing required env var: JUDGE0_RAPIDAPI_KEY",
+    "started_at": "2026-05-26T10:14:53.339888+00:00",
+    "finished_at": "2026-05-26T10:15:24.769+00:00"
+  },
+  {
+    "id": "cc5f3482-7bd5-4b89-8f1c-29fd8398d06e",
+    "status": "error",
+    "topic": "dump-test",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 3,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 1,
+    "error_message": "generation parse failed: Unterminated string in JSON at position 736 (line 9 column 8). stop_reason=end_turn usage=in=3727 out=1528 response_preview=\"```json\\n[\\n  {\\n    \\\"id\\\": \\\"shape-b-inheritance-methods\\\",\\n    \\\"type\\\": \\\"general\\\",\\n    \\\"topic\\\": \\\"Core Java - Classes Objects and Methods - Application\\\",\\n    \\\"difficulty\\\": \\\"medium\\\",\\n    \\\"question\\\": \\\"Consider that you are building a library management system and need to create a Book class with properties: title, author, ISBN, and availability status. The Book class should have a method called isAvailable that returns the current availability status and another method called checkoutBook that sets the availability to false when a book is borrowed. You need to ensure that the availability property can only be modified through the checkoutBook method. Which option correctly implements these methods in the Book class?\\\",\\n    \\\"options\\\": [\\n      \\\"```java\\\\npublic boolean isAvailable() {\\\\n    return availability;\\\\n}\\\\n\\\\npublic void checkoutBook() {\\\\n    this.availability = false;\\\\n}\\\\n```\\\",\\n      \\\"```java\\\\npublic boolean isAvailable() {\\\\n    return this.availability;\\\\n}\\\\n\\\\npublic void checkoutBook(boolean status) {\\\\n    availability = status;\\\\n}\\\\n```\\\",\\n      \\\"```java\\\\npublic boolean isAvailable() {\\\\n    return availability;\\\\n}\\\\n\\\\npublic void checkoutBook(boolean newAvailability) {\\\\n    this.availab...\"",
+    "started_at": "2026-05-26T10:33:23.302257+00:00",
+    "finished_at": "2026-05-26T10:33:34.812+00:00"
+  },
+  {
+    "id": "cd02ef60-e936-4d0a-98e2-ff29f474fb76",
+    "status": "error",
+    "topic": "local-test",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 5,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "generation parse failed: Unterminated string in JSON at position 589 (line 9 column 8). stop_reason=end_turn usage=in=3682 out=2496 response_preview=\"```json\\n[\\n  {\\n    \\\"id\\\": \\\"shape_b_constructor_method\\\",\\n    \\\"type\\\": \\\"general\\\",\\n    \\\"topic\\\": \\\"Core Java - Classes Objects and Methods - Application\\\",\\n    \\\"difficulty\\\": \\\"medium\\\",\\n    \\\"question\\\": \\\"Consider that you are implementing a BankAccount class to manage customer accounts. The class should have private attributes for accountNumber, accountHolder, and balance. You need to provide a constructor to initialize these attributes and a method called getBalance that returns the current balance. Which option correctly implements the constructor and the getBalance method?\\\",\\n    \\\"options\\\": [\\n      \\\"```...\"",
+    "started_at": "2026-05-26T10:28:45.987962+00:00",
+    "finished_at": "2026-05-26T10:29:02.946+00:00"
+  },
+  {
+    "id": "d9bf7b22-1618-44b5-8aee-19a392639401",
+    "status": "error",
+    "topic": "Core Java - Classes Objects and Methods",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 5,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": "generation parse failed: Unterminated string in JSON at position 643 (line 9 column 8). stop_reason=end_turn usage=in=2703 out=2831 response_preview=\"```json\\n[\\n  {\\n    \\\"id\\\": \\\"q1_constructor_init\\\",\\n    \\\"type\\\": \\\"code\\\",\\n    \\\"topic\\\": \\\"Core Java - Classes Objects and Methods - Application\\\",\\n    \\\"difficulty\\\": \\\"medium\\\",\\n    \\\"question\\\": \\\"Assume that a university system requires a Person class to store details about faculty members. The class must have private attributes for name, employee ID, and years of service. You need to implement a constructor that properly initializes all three fields and a method to calculate a bonus based on years of service. Which option correctly completes the Person class implementation? Analyze the given choices and se...\"",
+    "started_at": "2026-05-26T10:06:46.131934+00:00",
+    "finished_at": "2026-05-26T10:07:05.498+00:00"
+  },
+  {
+    "id": "dfb3724b-14ab-4c4f-b303-405ab37fbbdf",
+    "status": "done",
+    "topic": "CSS Properties",
+    "difficulty": "easy",
+    "mcq_type": "general",
+    "count": 20,
+    "quality": "balanced",
+    "languages": [],
+    "sample_file_ids": [
+      "CSS3 - Properties - Analysis-general.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-25T01:16:30.693839+00:00",
+    "finished_at": "2026-05-25T01:17:23.24+00:00"
+  },
+  {
+    "id": "dffef844-8e20-4116-879a-52c1d1322b4c",
+    "status": "done",
+    "topic": "e2e-fixed-test",
+    "difficulty": "medium",
+    "mcq_type": "code",
+    "count": 5,
+    "quality": "fast",
+    "languages": [
+      "java"
+    ],
+    "sample_file_ids": [
+      "Core Java - Classes Objects and Methods - Application-general 1.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-26T10:35:17.880475+00:00",
+    "finished_at": "2026-05-26T10:35:39.69+00:00"
+  },
+  {
+    "id": "fec1b568-ff1d-477f-8ad1-306719cf97a6",
+    "status": "done",
+    "topic": "Cloud",
+    "difficulty": "easy",
+    "mcq_type": "general",
+    "count": 5,
+    "quality": "balanced",
+    "languages": [],
+    "sample_file_ids": [
+      "sampleCloud.xls"
+    ],
+    "samples_per_file": 4,
+    "max_revamp_attempts": 3,
+    "error_message": null,
+    "started_at": "2026-05-26T12:29:46.272118+00:00",
+    "finished_at": "2026-05-26T12:30:04.885+00:00"
+  }
+]

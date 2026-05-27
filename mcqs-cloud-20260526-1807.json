@@ -1,0 +1,137 @@
+[
+  {
+    "id": "cloud-easy-001",
+    "type": "general",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "question": "A healthcare organization needs to ensure its systems and data remain operational and accessible even after a major infrastructure failure or disaster. Which cloud service should they implement?",
+    "options": [
+      "Disaster Recovery as a Service (DRaaS)",
+      "Content Delivery Network (CDN)",
+      "Backup as a Service (BaaS)",
+      "Cold Storage with Archiving"
+    ],
+    "correct_index": 0,
+    "explanation": "Disaster Recovery as a Service (DRaaS) is specifically designed to ensure business continuity and operational availability after major failures or disasters, unlike backup or storage solutions which only protect data.",
+    "snippet": null,
+    "plag_status": "unique",
+    "plag_matches": [
+      "https://www.linkedin.com/pulse/building-healthcare-infrastructure-inevitable-failure-chris-suter-nx1ne",
+      "https://www.vc3.com/guide/disaster-recovery-blueprint-healthcare-organizations",
+      "https://www.datadynamicsinc.com/quick-bytes-empowering-resilience-10-ways-cloud-based-disaster-recovery-is-revolutionizing-healthcare",
+      "https://censinet.com/perspectives/top-7-cloud-disaster-recovery-tools-for-healthcare",
+      "https://www.cleardata.com/wp-content/uploads/2023/06/SET-MKTG-WP-33-Backup-Disaster-Recovery.pdf"
+    ],
+    "plag_attempts": 1,
+    "code_verified": null,
+    "code_actual_output": null
+  },
+  {
+    "id": "cloud-easy-002",
+    "type": "general",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "question": "A retail company wants to automatically increase its computing resources during peak shopping seasons and reduce them afterward to control costs. Which cloud characteristic best supports this requirement?",
+    "options": [
+      "Elastic Scalability",
+      "Data Redundancy",
+      "Network Segmentation",
+      "Geographic Distribution"
+    ],
+    "correct_index": 0,
+    "explanation": "Elastic scalability allows cloud resources to be dynamically scaled up or down based on demand, making it ideal for handling seasonal traffic peaks while optimizing costs during off-peak periods.",
+    "snippet": null,
+    "plag_status": "unique",
+    "plag_matches": [
+      "https://www.chegg.com/homework-help/questions-and-answers/duang-peak-shopping-season-online-retail-company-experiences-sudden-surge-website-traffic--q196726264",
+      "https://brainly.com/question/63263657",
+      "https://ftp.cafeamorperfecto.com/libweb/y4uM6D/1FE023/benefits_of_cloud_computing-for_business.pdf",
+      "https://www.nops.io/blog/cloud-elasticity",
+      "https://buzzclan.com/cloud/elasticity-in-cloud-computing"
+    ],
+    "plag_attempts": 1,
+    "code_verified": null,
+    "code_actual_output": null
+  },
+  {
+    "id": "cloud-easy-003",
+    "type": "general",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "question": "A startup wants to deploy and run its web application without managing the underlying servers, operating systems, or infrastructure. Which cloud service model best fits their needs?",
+    "options": [
+      "Platform as a Service (PaaS)",
+      "Infrastructure as a Service (IaaS)",
+      "Software as a Service (SaaS)",
+      "Storage as a Service (STaaS)"
+    ],
+    "correct_index": 0,
+    "explanation": "Platform as a Service (PaaS) provides a managed environment where developers can deploy applications without worrying about the underlying infrastructure, servers, or operating systems.",
+    "snippet": null,
+    "plag_status": "unique",
+    "plag_matches": [
+      "https://www.brainscape.com/flashcards/az-900-exam-1-10810950/packs/19046235",
+      "https://www.passnexam.com/microsoft/az-900/2",
+      "https://expertminds.ai/practice/azure-fundamentals/azure-fundamentals-az-900-practice-exam-6/q/06",
+      "https://medium.com/@sadafsaleem5815/az900-practice-assessment-questions-by-microsoft-learn-7fd2238cb007",
+      "https://quizlet.com/808441904/az-900-set-1-of-3-flash-cards"
+    ],
+    "plag_attempts": 1,
+    "code_verified": null,
+    "code_actual_output": null
+  },
+  {
+    "id": "cloud-easy-004",
+    "type": "general",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "question": "An organization needs a cloud environment that combines private cloud control with public cloud flexibility, allowing workloads to move between both environments as needed. Which deployment model is most appropriate?",
+    "options": [
+      "Hybrid Cloud Deployment",
+      "Multi-region Public Cloud",
+      "Dedicated Private Cloud",
+      "Community Cloud Deployment"
+    ],
+    "correct_index": 0,
+    "explanation": "A hybrid cloud deployment integrates both private and public cloud environments, enabling workloads to be shifted between them based on security, compliance, or capacity requirements.",
+    "snippet": null,
+    "plag_status": "unique",
+    "plag_matches": [
+      "https://vasscompany.com/en/insights/blogs-articles/cloud-deployment-model-",
+      "https://opsiocloud.com/knowledge-base/cloud-deployment-models-public-private-hybrid",
+      "https://flexicloud.co/blogs/cloud-deployment-models",
+      "https://www.youtube.com/watch?v=ALdR0tLbm6o",
+      "https://www.deltaitnetwork.com/blog/cloud-computing-deployment-models-explained-in-2025"
+    ],
+    "plag_attempts": 1,
+    "code_verified": null,
+    "code_actual_output": null
+  },
+  {
+    "id": "cloud-easy-005",
+    "type": "general",
+    "topic": "Cloud Phase 2 V1 - Basic Cloud Services - Application",
+    "difficulty": "easy",
+    "question": "A media company needs to efficiently deliver large video files to users across different continents with minimal latency and fast load times. Which cloud service should they leverage?",
+    "options": [
+      "Content Delivery Network (CDN)",
+      "Disaster Recovery as a Service (DRaaS)",
+      "Backup as a Service (BaaS)",
+      "Object Storage with Replication"
+    ],
+    "correct_index": 0,
+    "explanation": "A Content Delivery Network (CDN) distributes content across geographically dispersed edge servers, reducing latency and improving load times for users regardless of their location.",
+    "snippet": null,
+    "plag_status": "unique",
+    "plag_matches": [
+      "https://myresearchspace.uws.ac.uk/ws/files/44143501/2024_02_24_Moina-Rivera_et_al_Cloud_final.pdf",
+      "https://api.video/blog/video-trends/cloud-video-streaming",
+      "https://www.vdocipher.com/blog/cloud-video-streaming-platform",
+      "https://antmedia.io/scalable-ultra-low-latency-streaming",
+      "https://www.streamingmedia.com/Articles/Post/Blog/Reimagining-Video-Delivery-with-the-Cloud--145954.aspx"
+    ],
+    "plag_attempts": 1,
+    "code_verified": null,
+    "code_actual_output": null
+  }
+]
