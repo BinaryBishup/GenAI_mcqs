@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  BookOpen, Braces, Code2, Eye, History, Play, RefreshCw, Search,
+  BookOpen, Braces, Code2, Eye, History, Play, Plus, RefreshCw, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { AddSampleModal } from "@/components/AddSampleModal";
 import { fetchCatalog } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { SampleCatalogItem } from "@/lib/types";
@@ -24,6 +25,7 @@ export function SamplesList({ onCreate, onPreview, onPastRuns }: Props) {
   const [items, setItems] = useState<SampleCatalogItem[] | null>(null);
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -73,8 +75,18 @@ export function SamplesList({ onCreate, onPreview, onPastRuns }: Props) {
             <RefreshCw className={loading ? "animate-spin" : ""} />
             Refresh
           </Button>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Plus />
+            Add samples
+          </Button>
         </div>
       </div>
+
+      <AddSampleModal
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onUploaded={() => load()}
+      />
 
       <div className="scrollbar-thin flex-1 min-h-0 overflow-y-auto">
         <div className="mx-auto max-w-[1400px] px-6 py-4">

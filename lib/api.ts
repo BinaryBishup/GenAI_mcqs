@@ -14,6 +14,25 @@ export async function fetchTopic(filename: string): Promise<SampleTopic> {
   return res.json();
 }
 
+export interface UploadSampleResult {
+  ok: true;
+  source_file: string;
+  topic: string;
+  inserted: number;
+  code_count: number;
+  general_count: number;
+}
+
+export async function uploadSample(file: File, topic: string): Promise<UploadSampleResult> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("topic", topic);
+  const res = await fetch("/api/samples/upload", { method: "POST", body: form });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `upload failed: ${res.status}`);
+  return data as UploadSampleResult;
+}
+
 export async function fetchPastRuns(source?: string): Promise<{ count: number; runs: PastRunSummary[] }> {
   const url = source ? `/api/runs?source=${encodeURIComponent(source)}` : "/api/runs";
   const res = await fetch(url);
