@@ -79,7 +79,9 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
 
     // ---- 3. Generate draft -------------------------------------------------
     log({ type: "phase", data: { phase: "generate", message: `Generating with ${model}...` } });
-    const draft = await generate(req, samplesBlock, model);
+    const draft = await generate(req, samplesBlock, model, (done, total) => {
+      log({ type: "phase", data: { phase: "generate", message: `Generated ${done}/${total} with ${model}...` } });
+    });
     log({ type: "generated", data: { count: draft.length } });
 
     // Persist initial drafts.
@@ -220,9 +222,84 @@ async function fetchPerFile(
   return pool.slice(0, visible);
 }
 
-async function generate(req: GenerateRequest, samplesBlock: string, model: string): Promise<MCQ[]> {
+type ProgressCb = (done: number, total: number) => void;
+
+/**
+ * Generate `req.count` MCQs by splitting the work into small batches that run
+ * with bounded concurrency.
+ *
+ * Why batch: a single call asking for 50 code MCQs needs far more than the
+ * 32K output-token cap (each Shape-B MCQ is ~700-1k tokens), so it gets cut
+ * off mid-array → JSON.parse fails → the whole run dies. It also takes 6+
+ * minutes, blowing past Vercel's maxDuration and leaving the UI stuck on
+ * "Generating…". Small batches each stay well under the token cap, finish in
+ * ~30-60s, and run several at a time so total wall-time stays low. A single
+ * batch that fails to parse is retried once and then skipped — partial output
+ * beats losing everything.
+ */
+async function generate(
+  req: GenerateRequest,
+  samplesBlock: string,
+  model: string,
+  onProgress?: ProgressCb,
+): Promise<MCQ[]> {
+  const total = req.count;
+  // Code MCQs are token-heavy (fenced snippets in options), so use smaller
+  // batches for them. General MCQs are compact → larger batches are fine.
+  const batchSize = req.mcq_type === "code" ? 6 : 12;
+  const concurrency = 5;
+
+  const batchCounts: number[] = [];
+  for (let remaining = total; remaining > 0; remaining -= batchSize) {
+    batchCounts.push(Math.min(batchSize, remaining));
+  }
+
+  const results: any[][] = new Array(batchCounts.length);
+  let completed = 0;
+  let nextIdx = 0;
+  let lastError: Error | null = null;
+
+  async function worker() {
+    while (true) {
+      const idx = nextIdx++;
+      if (idx >= batchCounts.length) return;
+      try {
+        results[idx] = await generateBatch(req, samplesBlock, model, batchCounts[idx]);
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        results[idx] = [];
+      }
+      completed += results[idx].length;
+      onProgress?.(completed, total);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, batchCounts.length) }, () => worker()),
+  );
+
+  // Batches can over- or under-produce (the model doesn't count perfectly), so
+  // trim to exactly the requested count for a consistent result.
+  const flat = results.flat().slice(0, total);
+  if (flat.length === 0) {
+    const errMsg = (lastError as Error | null)?.message;
+    throw new Error(
+      `generation produced no MCQs across ${batchCounts.length} batch(es)` +
+        (errMsg ? `: ${errMsg}` : ""),
+    );
+  }
+  return flat.map((raw, i) => normalizeMCQ(raw, i, req));
+}
+
+/** Generate a single batch of `count` MCQs. Retries once on a parse failure. */
+async function generateBatch(
+  req: GenerateRequest,
+  samplesBlock: string,
+  model: string,
+  count: number,
+): Promise<any[]> {
   const userPrompt = buildUserPrompt({
-    count: req.count,
+    count,
     topic: req.topic,
     difficulty: req.difficulty,
     mcqType: req.mcq_type,
@@ -234,59 +311,52 @@ async function generate(req: GenerateRequest, samplesBlock: string, model: strin
     qualityRules: req.quality_rules,
   });
 
-  // Scale output budget with requested count. Code MCQs cost more tokens
-  // because each MCQ may be Shape B (each of the 4 options is a fenced code
-  // snippet of ~8-15 lines) on top of a setup snippet in question.snippet —
-  // that's roughly 5x the tokens of a simple "what's printed?" MCQ. Be generous
-  // so we never get truncated mid-array. Claude 4.x supports up to 64K output;
-  // 32K is plenty and keeps streaming + cost predictable.
+  // Sized for a single small batch — generous headroom so a batch never
+  // truncates. Code MCQs cost ~1400 tokens each (Shape B = four fenced code
+  // options + setup snippet); general MCQs ~500.
   const perMcq = req.mcq_type === "code" ? 1400 : 500;
-  const maxTokens = Math.min(32000, Math.max(3000, req.count * perMcq + 1200));
+  const maxTokens = Math.min(16000, Math.max(2000, count * perMcq + 800));
 
-  // Anthropic requires streaming for any request that may exceed the 10-minute
-  // non-streaming cap. With max_tokens up to 32K, large counts can take that
-  // long, so always stream and re-assemble the message.
-  const stream = anthropic().messages.stream({
-    model,
-    max_tokens: maxTokens,
-    system: [
-      { type: "text", text: SYSTEM_INSTRUCTIONS, cache_control: { type: "ephemeral" } },
-    ],
-    messages: [{ role: "user", content: userPrompt }],
-  });
-  const msg = await stream.finalMessage();
+  let lastErr = "";
+  let lastMeta = "";
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    // Streaming avoids the 10-minute non-streaming SDK cap and lets long
+    // batches re-assemble cleanly. The system block is prompt-cached so every
+    // batch after the first reuses it cheaply.
+    const stream = anthropic().messages.stream({
+      model,
+      max_tokens: maxTokens,
+      system: [
+        { type: "text", text: SYSTEM_INSTRUCTIONS, cache_control: { type: "ephemeral" } },
+      ],
+      messages: [{ role: "user", content: userPrompt }],
+    });
+    const msg = await stream.finalMessage();
+    const text = msg.content
+      .flatMap((b) => (b.type === "text" ? [b.text] : []))
+      .join("\n");
 
-  const text = msg.content
-    .flatMap((b) => (b.type === "text" ? [b.text] : []))
-    .join("\n");
-
-  try {
-    const parsed = JSON.parse(extractJson(text));
-    if (!Array.isArray(parsed)) {
-      throw new Error("generator did not return a JSON array");
+    try {
+      const parsed = JSON.parse(extractJson(text));
+      if (!Array.isArray(parsed)) throw new Error("batch did not return a JSON array");
+      return parsed;
+    } catch (parseErr) {
+      const stopReason = msg.stop_reason ?? "unknown";
+      const usage = msg.usage ? `in=${msg.usage.input_tokens} out=${msg.usage.output_tokens}` : "?";
+      lastErr = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      lastMeta = `stop_reason=${stopReason} usage=${usage} max=${maxTokens} attempt=${attempt}`;
+      if (process.env.NODE_ENV !== "production") {
+        try {
+          const fs = await import("fs/promises");
+          const path = `/tmp/mcq-parse-fail-${Date.now()}-a${attempt}.txt`;
+          await fs.writeFile(path, text);
+          // eslint-disable-next-line no-console
+          console.error(`[generateBatch] parse fail dumped to ${path} (${lastMeta})`);
+        } catch {}
+      }
     }
-    return parsed.map((raw, i) => normalizeMCQ(raw, i, req));
-  } catch (parseErr) {
-    const stopReason = msg.stop_reason ?? "unknown";
-    const usage = msg.usage ? `in=${msg.usage.input_tokens} out=${msg.usage.output_tokens}` : "?";
-    const truncated = stopReason === "max_tokens"
-      ? ` — hit max_tokens (${maxTokens}). Cut off mid-array. Try fewer questions or a tighter prompt.`
-      : "";
-    const reason = parseErr instanceof Error ? parseErr.message : String(parseErr);
-    if (process.env.NODE_ENV !== "production") {
-      try {
-        const fs = await import("fs/promises");
-        const path = `/tmp/mcq-parse-fail-${Date.now()}.txt`;
-        await fs.writeFile(path, text);
-        // eslint-disable-next-line no-console
-        console.error(`[generate] parse fail dumped to ${path} (stop=${stopReason}, ${usage}, max=${maxTokens})`);
-      } catch {}
-    }
-    const preview = text.length > 1200 ? text.slice(0, 1200) + "..." : text;
-    throw new Error(
-      `generation parse failed: ${reason}.${truncated} stop_reason=${stopReason} usage=${usage} response_preview=${JSON.stringify(preview)}`,
-    );
   }
+  throw new Error(`batch parse failed after 2 attempts: ${lastErr}. ${lastMeta}`);
 }
 
 function normalizeMCQ(raw: any, i: number, req: GenerateRequest): MCQ {

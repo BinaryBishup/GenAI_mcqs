@@ -46,6 +46,13 @@ export async function fetchRunResults(id: string): Promise<{ run_id: string; que
   return res.json();
 }
 
+/** Full run record + current questions. Used to poll an in-progress run. */
+export async function fetchRun(id: string): Promise<{ run: PastRunSummary & { status: string }; mcqs: MCQ[] }> {
+  const res = await fetch(`/api/runs/${id}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`run fetch failed: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchFinal(runId: string): Promise<{ run_id: string; questions: any[] }> {
   const res = await fetch(`/api/runs/${runId}/final`);
   if (!res.ok) throw new Error(`final fetch failed: ${res.status}`);

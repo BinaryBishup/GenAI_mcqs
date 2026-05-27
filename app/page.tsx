@@ -6,14 +6,12 @@ import { SamplesList } from "@/components/SamplesList";
 import { ConfigDialog } from "@/components/ConfigDialog";
 import { RunView } from "@/components/RunView";
 import { TopicModal } from "@/components/TopicModal";
-import { PastRunsModal } from "@/components/PastRunsModal";
-import { startGeneration, fetchFinal, fetchRunResults } from "@/lib/api";
-import type { GenerateRequest, MCQ, PastRunSummary, StreamEvent } from "@/lib/types";
+import { startGeneration, fetchFinal } from "@/lib/api";
+import type { GenerateRequest, MCQ, StreamEvent } from "@/lib/types";
 
 export default function Page() {
   const [sampleFile, setSampleFile] = useState<string>("");
   const [previewFile, setPreviewFile] = useState<string>("");
-  const [pastRunsFile, setPastRunsFile] = useState<string>("");
   const [configOpen, setConfigOpen] = useState(false);
   const [config, setConfig] = useState<GenerateRequest | null>(null);
 
@@ -85,38 +83,6 @@ export default function Page() {
     );
   }
 
-  /** Load a completed past run into RunView (read-only view). */
-  async function openPastRun(run: PastRunSummary) {
-    setPastRunsFile("");
-    setEvents([]);
-    setResults([]);
-    setError(null);
-    setRunning(false);
-
-    // Synthesize a GenerateRequest-shaped config from the run summary so RunView
-    // can show its header (topic, count, difficulty, etc.). This is purely for
-    // display; we won't re-run anything.
-    setConfig({
-      count: run.count,
-      topic: run.topic,
-      difficulty: run.difficulty,
-      mcq_type: run.mcq_type,
-      languages: [],
-      samples: [],
-      sample_files: run.sample_file_ids,
-      samples_per_file: 4,
-      max_revamp_attempts: 3,
-      quality: run.quality,
-    });
-
-    try {
-      const data = await fetchRunResults(run.id);
-      setResults(data.questions ?? []);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  }
-
   function reset() {
     cancelRef.current?.();
     setConfig(null);
@@ -158,7 +124,6 @@ export default function Page() {
             <SamplesList
               onCreate={pickSampleForCreate}
               onPreview={setPreviewFile}
-              onPastRuns={setPastRunsFile}
             />
           </main>
           <ConfigDialog
@@ -169,11 +134,6 @@ export default function Page() {
             onPreview={setPreviewFile}
           />
           <TopicModal filename={previewFile} onClose={() => setPreviewFile("")} />
-          <PastRunsModal
-            filename={pastRunsFile}
-            onClose={() => setPastRunsFile("")}
-            onPickRun={openPastRun}
-          />
         </>
       )}
     </div>

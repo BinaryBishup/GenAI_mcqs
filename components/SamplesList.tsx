@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
-  BookOpen, Braces, Code2, Eye, History, Play, Plus, RefreshCw, Search,
+  BookOpen, Braces, Code2, Eye, Play, Plus, Search, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,24 +18,16 @@ interface Props {
   onCreate: (filename: string) => void;
   /** Open the topic-browser modal for this filename. */
   onPreview: (filename: string) => void;
-  /** Open the past-runs modal for this filename. */
-  onPastRuns: (filename: string) => void;
 }
 
-export function SamplesList({ onCreate, onPreview, onPastRuns }: Props) {
+export function SamplesList({ onCreate, onPreview }: Props) {
   const [items, setItems] = useState<SampleCatalogItem[] | null>(null);
   const [filter, setFilter] = useState("");
-  const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
   async function load() {
-    setLoading(true);
-    try {
-      const data = await fetchCatalog();
-      setItems(data.items);
-    } finally {
-      setLoading(false);
-    }
+    const data = await fetchCatalog();
+    setItems(data.items);
   }
 
   useEffect(() => { load(); }, []);
@@ -71,10 +64,12 @@ export function SamplesList({ onCreate, onPreview, onPastRuns }: Props) {
               {filtered.length} / {items.length}
             </span>
           )}
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            <RefreshCw className={loading ? "animate-spin" : ""} />
-            Refresh
-          </Button>
+          <Link href="/generations">
+            <Button variant="outline" size="sm">
+              <Sparkles />
+              Generated questions
+            </Button>
+          </Link>
           <Button size="sm" onClick={() => setAddOpen(true)}>
             <Plus />
             Add samples
@@ -113,7 +108,6 @@ export function SamplesList({ onCreate, onPreview, onPastRuns }: Props) {
                       item={i}
                       onCreate={() => onCreate(i.filename)}
                       onPreview={() => onPreview(i.filename)}
-                      onPastRuns={() => onPastRuns(i.filename)}
                     />
                   ))}
                 </tbody>
@@ -127,12 +121,11 @@ export function SamplesList({ onCreate, onPreview, onPastRuns }: Props) {
 }
 
 function TopicRow({
-  item, onCreate, onPreview, onPastRuns,
+  item, onCreate, onPreview,
 }: {
   item: SampleCatalogItem;
   onCreate: () => void;
   onPreview: () => void;
-  onPastRuns: () => void;
 }) {
   const code = item.primary_type === "code";
   return (
@@ -163,10 +156,6 @@ function TopicRow({
           <Button variant="outline" size="xs" onClick={onPreview} aria-label="View sample questions">
             <Eye />
             View
-          </Button>
-          <Button variant="outline" size="xs" onClick={onPastRuns} aria-label="View past runs">
-            <History />
-            Past runs
           </Button>
           <Button size="xs" onClick={onCreate} aria-label="Create new batch">
             <Play />
