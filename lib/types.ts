@@ -5,6 +5,18 @@ export type Quality = "fast" | "balanced" | "highest";
 export type PlagStatus = "pending" | "unique" | "flagged" | "revamped" | "gave_up";
 export type RunStatus = "pending" | "generating" | "plagchecking" | "revamping" | "verifying" | "done" | "error";
 
+/** Independent (non-code) correctness check verdict. */
+export type AnswerCheckStatus = "pending" | "agree" | "disagree" | "uncertain" | "skipped";
+
+/**
+ * "From scratch" question styles the user can request when there is no sample
+ * file to imitate. They map onto the canonical prompt shapes / framings.
+ *   code        → code-snippet questions (Shape A/C: read code, predict output / true statement)
+ *   application → real-world scenario / "which approach fits this situation" questions
+ *   analysis    → analyse-and-evaluate / compare-options reasoning questions
+ */
+export type QuestionKind = "code" | "application" | "analysis";
+
 export interface CodeSnippet {
   language: Language;
   code: string;
@@ -27,6 +39,12 @@ export interface MCQ {
   code_verified?: boolean | null;
   code_actual_output?: string | null;
   code_fix?: string | null;
+  /** Independent re-derivation of the answer for non-code MCQs. */
+  answer_check_status?: AnswerCheckStatus;
+  /** Option index the independent checker believed correct (for disagree). */
+  answer_check_index?: number | null;
+  /** One-line rationale from the checker. */
+  answer_check_notes?: string | null;
 }
 
 export interface GenerateRequest {
@@ -47,6 +65,15 @@ export interface GenerateRequest {
   negative_prompt?: string;
   /** Subset of quality-rule IDs to apply. Omit / undefined = all rules on. */
   quality_rules?: string[];
+  /**
+   * Fetch reference text from the web (Tavily) and require the model to ground
+   * factual claims in it. Defaults to true. Set false to skip the extra search.
+   */
+  grounding?: boolean;
+  /** 'sample' = imitate sample files; 'scratch' = topic-only, no samples. */
+  mode?: "sample" | "scratch";
+  /** Scratch mode only: which question styles to produce. */
+  question_kinds?: QuestionKind[];
 }
 
 export interface SampleCatalogItem {

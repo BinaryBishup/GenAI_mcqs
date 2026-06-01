@@ -63,12 +63,27 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
   const [extraPrompt, setExtraPrompt] = useState("");
   const [enabledRules, setEnabledRules] = useState<Set<string>>(() => new Set(DEFAULT_RULE_IDS));
 
-  const [meta, setMeta] = useState<SampleCatalogItem | null>(null);
+  const [items, setItems] = useState<SampleCatalogItem[]>([]);
   const [sampleMcq, setSampleMcq] = useState<SampleTopicMCQ | null>(null);
 
   const filename = sampleFiles[0] ?? "";
-  const detectedType: MCQType = meta?.primary_type ?? "general";
-  const detectedLang = meta?.primary_language ?? null;
+  const multi = sampleFiles.length > 1;
+
+  // Aggregate metadata across ALL selected files (topic-wide generation).
+  const selectedItems = useMemo(
+    () => items.filter((i) => sampleFiles.includes(i.filename)),
+    [items, sampleFiles],
+  );
+  const combinedCount = selectedItems.reduce((n, i) => n + i.count, 0);
+  // Majority type across selected files; language = first non-null.
+  const codeFiles = selectedItems.filter((i) => i.primary_type === "code").length;
+  const detectedType: MCQType =
+    selectedItems.length > 0 && codeFiles * 2 >= selectedItems.length ? "code" : "general";
+  const detectedLang =
+    selectedItems.find((i) => i.primary_language)?.primary_language ?? null;
+  const headerTopic = multi
+    ? `${sampleFiles.length} topics combined`
+    : (selectedItems[0]?.topic ?? filename ?? "—");
 
   useEffect(() => {
     if (!open) return;
@@ -81,15 +96,14 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
   }, [open]);
 
   useEffect(() => {
-    if (!filename) {
-      setMeta(null);
+    if (sampleFiles.length === 0) {
+      setItems([]);
       setSampleMcq(null);
       return;
     }
     fetchCatalog()
-      .then((cat) => cat.items.find((i) => i.filename === filename) ?? null)
-      .then(setMeta)
-      .catch(() => setMeta(null));
+      .then((cat) => setItems(cat.items))
+      .catch(() => setItems([]));
     fetchTopic(filename)
       .then((t) => {
         const buckets = t.by_difficulty;
@@ -97,7 +111,7 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
         setSampleMcq(pick);
       })
       .catch(() => setSampleMcq(null));
-  }, [filename]);
+  }, [filename, sampleFiles.length]);
 
   function changeDifficulty(d: Difficulty) {
     setDifficulty(d);
@@ -151,16 +165,16 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
             <div className="min-w-0">
               <DialogTitle className="sr-only">Configure generation</DialogTitle>
               <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                Source sample
+                {multi ? `Source samples · ${sampleFiles.length} files` : "Source sample"}
               </p>
               <p className="mt-1 truncate text-base font-semibold tracking-tight">
-                {meta?.topic ?? filename ?? "—"}
+                {headerTopic}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {meta && (
+                {selectedItems.length > 0 && (
                   <>
                     <Badge variant="outline" className="font-mono">
-                      {meta.count} samples
+                      {combinedCount} samples
                     </Badge>
                     <Badge variant={detectedType === "code" ? "default" : "secondary"}>
                       {detectedType === "code"
@@ -175,6 +189,11 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
                   </>
                 )}
               </div>
+              {multi && (
+                <p className="mt-1.5 line-clamp-2 text-[11px] text-muted-foreground">
+                  {selectedItems.map((i) => i.topic).join(" · ")}
+                </p>
+              )}
             </div>
             <DialogClose asChild>
               <Button variant="ghost" size="icon-sm" aria-label="Close">
@@ -260,7 +279,7 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
               {/* RIGHT — sample preview */}
               <section className="scrollbar-thin overflow-visible bg-muted/10 px-5 py-6 sm:px-7 lg:min-h-0 lg:overflow-y-auto">
                 <div className="flex items-center justify-between">
-                  <Label>Sample from this topic</Label>
+                  <Label>{multi ? `Sample (1 of ${sampleFiles.length} files)` : "Sample from this topic"}</Label>
                   {filename && (
                     <Button variant="outline" size="xs" onClick={() => onPreview(filename)}>
                       <Eye />

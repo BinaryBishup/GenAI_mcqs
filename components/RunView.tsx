@@ -1,16 +1,11 @@
 "use client";
 
-import {
-  ArrowLeft, Download, FileJson, FileSpreadsheet, FileUp, Loader2, Sparkles, Activity,
-} from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Timeline } from "@/components/Timeline";
 import { MCQCard } from "@/components/MCQCard";
-import { downloadMCQs } from "@/lib/download";
+import { DownloadMenu } from "@/components/DownloadMenu";
 import type { GenerateRequest, MCQ, StreamEvent } from "@/lib/types";
 
 interface Props {
@@ -20,9 +15,13 @@ interface Props {
   running: boolean;
   error: string | null;
   onReset: () => void;
+  /** Run id — enables editing/persistence on the cards. */
+  runId?: string | null;
+  /** Apply an edit to the question at the given (true) index. */
+  onChangeMcq?: (index: number, mcq: MCQ) => void;
 }
 
-export function RunView({ config, events, results, running, error, onReset }: Props) {
+export function RunView({ config, events, results, running, error, onReset, runId, onChangeMcq }: Props) {
   const cleanResults = results.filter(Boolean);
 
   return (
@@ -65,33 +64,7 @@ export function RunView({ config, events, results, running, error, onReset }: Pr
               {cleanResults.length} ready
             </Badge>
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={cleanResults.length === 0}
-                className="border-white/25 bg-white/5 text-white hover:bg-white/15 hover:text-white aria-expanded:bg-white/15 disabled:text-white/40"
-              >
-                <Download />
-                Download
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => downloadMCQs(cleanResults, "json", config.topic)}>
-                <FileJson />
-                JSON
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => downloadMCQs(cleanResults, "csv", config.topic)}>
-                <FileSpreadsheet />
-                CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => downloadMCQs(cleanResults, "mettl", config.topic)}>
-                <FileUp />
-                Mettl bulk-upload (.xls)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <DownloadMenu mcqs={cleanResults} topic={config.topic} variant="onDark" />
         </div>
       </div>
 
@@ -129,7 +102,17 @@ export function RunView({ config, events, results, running, error, onReset }: Pr
                     : "No results yet."}
                 </p>
               ) : (
-                cleanResults.map((q, i) => <MCQCard key={q.id || i} mcq={q} index={i} />)
+                results.map((q, i) =>
+                  q ? (
+                    <MCQCard
+                      key={q.id || i}
+                      mcq={q}
+                      index={i}
+                      runId={runId}
+                      onChange={onChangeMcq ? (m) => onChangeMcq(i, m) : undefined}
+                    />
+                  ) : null,
+                )
               )}
             </div>
           </div>

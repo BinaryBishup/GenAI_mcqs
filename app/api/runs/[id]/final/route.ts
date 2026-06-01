@@ -31,6 +31,9 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     code_verified: m.code_verified,
     code_actual_output: m.code_actual_output,
     code_fix: m.code_fix,
+    answer_check_status: m.answer_check_status ?? undefined,
+    answer_check_index: m.answer_check_index ?? null,
+    answer_check_notes: m.answer_check_notes ?? null,
   }));
 
   return NextResponse.json({ run_id: id, questions });

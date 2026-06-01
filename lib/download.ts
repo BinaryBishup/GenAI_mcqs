@@ -1,5 +1,6 @@
 import type { MCQ } from "./types";
 import { buildMettlWorkbook } from "./mettl-export";
+import { isUsable } from "./utils";
 
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 60);
@@ -24,6 +25,7 @@ function toCsv(mcqs: MCQ[]): string {
     "option_a", "option_b", "option_c", "option_d",
     "correct_index", "correct_answer", "explanation",
     "plag_status", "plag_attempts", "code_verified", "code_actual_output",
+    "answer_check_status", "answer_check_notes",
   ];
   const rows = mcqs.map((m) => [
     m.id, m.type, m.topic, m.difficulty,
@@ -37,6 +39,8 @@ function toCsv(mcqs: MCQ[]): string {
     m.plag_attempts ?? 0,
     m.code_verified ?? "",
     m.code_actual_output ?? "",
+    m.answer_check_status ?? "",
+    m.answer_check_notes ?? "",
   ]);
   return [headers, ...rows].map((r) => r.map(csvField).join(",")).join("\n");
 }
@@ -54,7 +58,33 @@ function trigger(blob: Blob, filename: string) {
 
 export type DownloadFormat = "json" | "csv" | "mettl";
 
-export function downloadMCQs(mcqs: MCQ[], format: DownloadFormat, topic: string) {
+/** Count of MCQs that would be excluded from a default export. */
+export function flaggedCount(mcqs: MCQ[]): number {
+  return mcqs.filter((m) => !isUsable(m)).length;
+}
+
+/**
+ * Export MCQs. By default, items that failed a quality gate (plagiarism,
+ * code-verify, or the independent answer-check) are EXCLUDED — only ship
+ * questions we're confident in. Pass { includeFlagged: true } to export the
+ * full set regardless.
+ */
+export function downloadMCQs(
+  mcqs: MCQ[],
+  format: DownloadFormat,
+  topic: string,
+  opts?: { includeFlagged?: boolean },
+) {
+  const list = opts?.includeFlagged ? mcqs : mcqs.filter(isUsable);
+  if (list.length === 0) {
+    // Nothing passed the gates — fall back to the full set so the user still
+    // gets a file (the flags are visible in the UI and the CSV columns).
+    return downloadMCQs(mcqs, format, topic, { includeFlagged: true });
+  }
+  return doDownload(list, format, topic);
+}
+
+function doDownload(mcqs: MCQ[], format: DownloadFormat, topic: string) {
   const base = `mcqs-${slugify(topic) || "export"}-${timestamp()}`;
   if (format === "json") {
     trigger(new Blob([JSON.stringify(mcqs, null, 2)], { type: "application/json" }), `${base}.json`);

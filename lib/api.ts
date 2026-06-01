@@ -53,6 +53,13 @@ export async function fetchRun(id: string): Promise<{ run: PastRunSummary & { st
   return res.json();
 }
 
+/** Stored progress events for a run, in order — replays the live Timeline. */
+export async function fetchRunEvents(id: string): Promise<{ run_id: string; events: StreamEvent[] }> {
+  const res = await fetch(`/api/runs/${id}/events`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`run events fetch failed: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchFinal(runId: string): Promise<{ run_id: string; questions: any[] }> {
   const res = await fetch(`/api/runs/${runId}/final`);
   if (!res.ok) throw new Error(`final fetch failed: ${res.status}`);
@@ -62,6 +69,30 @@ export async function fetchFinal(runId: string): Promise<{ run_id: string; quest
 export async function health() {
   const res = await fetch("/api/health");
   return res.json();
+}
+
+/** Persist an edit to one MCQ (by run + index); server re-runs the answer-check. */
+export async function updateMcq(runId: string, index: number, mcq: MCQ): Promise<MCQ> {
+  const res = await fetch("/api/mcqs", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ run_id: runId, index, mcq }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `update failed: ${res.status}`);
+  return data.mcq as MCQ;
+}
+
+/** Ask the model to modify one MCQ per a natural-language instruction (not persisted). */
+export async function aiModifyMcq(mcq: MCQ, instruction: string): Promise<MCQ> {
+  const res = await fetch("/api/mcqs/modify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mcq, instruction }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `modify failed: ${res.status}`);
+  return data.mcq as MCQ;
 }
 
 /**

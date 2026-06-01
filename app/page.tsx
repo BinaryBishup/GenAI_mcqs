@@ -10,7 +10,7 @@ import { startGeneration, fetchFinal } from "@/lib/api";
 import type { GenerateRequest, MCQ, StreamEvent } from "@/lib/types";
 
 export default function Page() {
-  const [sampleFile, setSampleFile] = useState<string>("");
+  const [sampleFiles, setSampleFiles] = useState<string[]>([]);
   const [previewFile, setPreviewFile] = useState<string>("");
   const [configOpen, setConfigOpen] = useState(false);
   const [config, setConfig] = useState<GenerateRequest | null>(null);
@@ -19,12 +19,14 @@ export default function Page() {
   const [results, setResults] = useState<MCQ[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
   const cancelRef = useRef<(() => void) | null>(null);
 
   useEffect(() => () => { cancelRef.current?.(); }, []);
 
-  function pickSampleForCreate(filename: string) {
-    setSampleFile(filename);
+  function pickSampleForCreate(filenames: string[]) {
+    if (filenames.length === 0) return;
+    setSampleFiles(filenames);
     setConfigOpen(true);
   }
 
@@ -34,12 +36,17 @@ export default function Page() {
     setEvents([]);
     setResults([]);
     setError(null);
+    setRunId(null);
     setRunning(true);
 
     cancelRef.current = startGeneration(
       req,
       (evt) => {
         setEvents((prev) => [...prev, evt]);
+
+        if ((evt.type === "workflow_start" || evt.type === "workflow_done") && evt.data?.run_id) {
+          setRunId(evt.data.run_id as string);
+        }
 
         // Server-emitted error events: the SSE stream stays open (status=200)
         // but the workflow has failed. Translate to an error banner so the user
@@ -89,7 +96,8 @@ export default function Page() {
     setEvents([]);
     setResults([]);
     setError(null);
-    setSampleFile("");
+    setRunId(null);
+    setSampleFiles([]);
   }
 
   // Once a run has been kicked off, we stay on RunView until the user clicks
@@ -107,6 +115,8 @@ export default function Page() {
           running={running}
           error={error}
           onReset={reset}
+          runId={runId}
+          onChangeMcq={(i, m) => setResults((prev) => { const n = [...prev]; n[i] = m; return n; })}
         />
       ) : (
         <>
@@ -129,7 +139,7 @@ export default function Page() {
           <ConfigDialog
             open={configOpen}
             onOpenChange={setConfigOpen}
-            sampleFiles={sampleFile ? [sampleFile] : []}
+            sampleFiles={sampleFiles}
             onStart={start}
             onPreview={setPreviewFile}
           />
