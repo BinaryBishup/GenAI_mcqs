@@ -9,3 +9,4 @@ node_modules/
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+deck_assets/
