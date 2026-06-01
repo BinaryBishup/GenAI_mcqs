@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  BookOpen, Braces, Code2, Eye, Layers, PenLine, Play, Plus, Search, Sparkles, X,
+  BookOpen, Braces, Code2, Eye, Layers, Play, Plus, Search, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,18 +87,6 @@ export function SamplesList({ onCreate, onPreview }: Props) {
               {filtered.length} / {items.length}
             </span>
           )}
-          <Link href="/generate">
-            <Button variant="outline" size="sm">
-              <PenLine />
-              Generate from scratch
-            </Button>
-          </Link>
-          <Link href="/generations">
-            <Button variant="outline" size="sm">
-              <Sparkles />
-              Generated questions
-            </Button>
-          </Link>
           <Button size="sm" onClick={() => setAddOpen(true)}>
             <Plus />
             Add samples

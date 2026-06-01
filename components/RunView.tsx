@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowLeft, Loader2, Sparkles, Activity } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2, Sparkles, Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Timeline } from "@/components/Timeline";
 import { MCQCard } from "@/components/MCQCard";
 import { DownloadMenu } from "@/components/DownloadMenu";
+import { AppNav } from "@/components/AppNav";
 import type { GenerateRequest, MCQ, StreamEvent } from "@/lib/types";
 
 interface Props {
@@ -26,47 +26,34 @@ export function RunView({ config, events, results, running, error, onReset, runI
 
   return (
     <div className="flex h-full flex-col">
-      {/* navy run header */}
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-blue-950/50 bg-blue-950 px-6 py-3 text-white">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onReset}
-            disabled={running}
-            className="text-white/90 hover:bg-white/10 hover:text-white aria-expanded:bg-white/10 disabled:text-white/50"
-          >
-            <ArrowLeft />
-            Back
-          </Button>
-          <div className="h-6 w-px bg-white/15" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-white">{config.topic}</p>
-            <p className="mt-0.5 truncate text-[11px] text-white/60">
-              {config.count} × {config.difficulty} {config.mcq_type} ·
-              {" "}{config.sample_files.length} sample file{config.sample_files.length === 1 ? "" : "s"} ·
-              {" "}{config.quality}
-            </p>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {running ? (
-            <Badge
-              variant="outline"
-              className="gap-1.5 border-white/20 bg-white/5 normal-case tracking-normal text-white"
-            >
-              <Loader2 className="size-3 animate-spin" />
-              Running
-            </Badge>
-          ) : (
-            <Badge className="gap-1.5 bg-emerald-500/20 normal-case tracking-normal text-emerald-100 hover:bg-emerald-500/20">
-              <Sparkles className="size-3" />
-              {cleanResults.length} ready
-            </Badge>
-          )}
-          <DownloadMenu mcqs={cleanResults} topic={config.topic} variant="onDark" />
-        </div>
-      </div>
+      <AppNav
+        back={{ onClick: onReset, disabled: running, label: "Back" }}
+        title={config.topic}
+        subtitle={
+          `${config.count} × ${config.difficulty} ${config.mcq_type} · ` +
+          `${config.sample_files.length} sample file${config.sample_files.length === 1 ? "" : "s"} · ` +
+          `${config.quality}`
+        }
+        actions={
+          <>
+            {running ? (
+              <Badge
+                variant="outline"
+                className="gap-1.5 border-white/20 bg-white/5 normal-case tracking-normal text-white"
+              >
+                <Loader2 className="size-3 animate-spin" />
+                Running
+              </Badge>
+            ) : (
+              <Badge className="gap-1.5 bg-emerald-500/20 normal-case tracking-normal text-emerald-100 hover:bg-emerald-500/20">
+                <Sparkles className="size-3" />
+                {cleanResults.length} ready
+              </Badge>
+            )}
+            <DownloadMenu mcqs={cleanResults} topic={config.topic} variant="onDark" />
+          </>
+        }
+      />
 
       {error && (
         <div className="shrink-0 border-b border-destructive/40 bg-destructive/10 px-6 py-3 text-sm text-destructive">

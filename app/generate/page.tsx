@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
-  Activity, ArrowLeft, Braces, FlaskConical, Gauge, Globe, Loader2, Minus,
+  Activity, Braces, FlaskConical, Gauge, Globe, Loader2, Minus,
   PenLine, Play, Plus, Puzzle, Sparkles, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Timeline } from "@/components/Timeline";
 import { MCQCard } from "@/components/MCQCard";
 import { DownloadMenu } from "@/components/DownloadMenu";
+import { AppNav } from "@/components/AppNav";
 import { QUALITY_RULES, DEFAULT_RULE_IDS } from "@/lib/prompts";
 import { startGeneration, fetchFinal } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -175,34 +175,7 @@ export default function GeneratePage() {
 
   return (
     <div className="flex h-screen flex-col">
-      {/* header */}
-      <header className="shrink-0 border-b border-blue-950/50 bg-blue-950 text-white">
-        <div className="mx-auto flex h-14 max-w-[1500px] items-center justify-between px-6">
-          <div className="flex items-center gap-2.5">
-            <div className="grid size-8 place-items-center rounded-md bg-white/10 ring-1 ring-white/20">
-              <PenLine className="size-4" />
-            </div>
-            <h1 className="text-sm font-semibold">Generate from scratch</h1>
-            <Badge variant="outline" className="ml-1 border-white/20 bg-white/5 text-[10px] font-normal normal-case tracking-normal text-white/70">
-              no sample needed
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/generations">
-              <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/10 hover:text-white">
-                <Sparkles />
-                Generated questions
-              </Button>
-            </Link>
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/10 hover:text-white">
-                <ArrowLeft />
-                Samples
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AppNav />
 
       {error && (
         <div className="shrink-0 border-b border-destructive/40 bg-destructive/10 px-6 py-3 text-sm text-destructive">

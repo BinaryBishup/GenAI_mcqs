@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  Activity, AlertTriangle, ArrowLeft, CheckCircle2, Download, FileJson,
+  Activity, AlertTriangle, CheckCircle2, Download, FileJson,
   FileSpreadsheet, FileUp, Loader2, Search, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import {
 import { MCQCard } from "@/components/MCQCard";
 import { DownloadMenu } from "@/components/DownloadMenu";
 import { Timeline } from "@/components/Timeline";
+import { AppNav } from "@/components/AppNav";
 import { fetchPastRuns, fetchRun, fetchRunEvents, fetchRunResults } from "@/lib/api";
 import { downloadMCQs, type DownloadFormat } from "@/lib/download";
 import { cn } from "@/lib/utils";
@@ -123,39 +123,25 @@ export default function GenerationsPage() {
   if (selected) {
     return (
       <div className="flex h-screen flex-col">
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-blue-950/50 bg-blue-950 px-6 py-3 text-white">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelected(null)}
-              className="text-white/90 hover:bg-white/10 hover:text-white"
-            >
-              <ArrowLeft />
-              Back
-            </Button>
-            <div className="h-6 w-px bg-white/15" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-white">{selected.topic}</p>
-              <p className="mt-0.5 truncate text-[11px] text-white/60">
-                {selected.count} × {selected.difficulty} {selected.mcq_type} · {selected.quality} ·{" "}
-                {formatDate(selected.started_at)}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {detailStatus && detailStatus !== "done" && detailStatus !== "error" && (
-              <Badge
-                variant="outline"
-                className="gap-1.5 border-white/20 bg-white/5 normal-case tracking-normal text-white"
-              >
-                <Loader2 className="size-3 animate-spin" />
-                {detail?.length ?? 0}/{selected.count}
-              </Badge>
-            )}
-          <DownloadMenu mcqs={detail ?? []} topic={selected.topic} variant="onDark" />
-          </div>
-        </header>
+        <AppNav
+          back={{ onClick: () => setSelected(null), label: "Back" }}
+          title={selected.topic}
+          subtitle={`${selected.count} × ${selected.difficulty} ${selected.mcq_type} · ${selected.quality} · ${formatDate(selected.started_at)}`}
+          actions={
+            <>
+              {detailStatus && detailStatus !== "done" && detailStatus !== "error" && (
+                <Badge
+                  variant="outline"
+                  className="gap-1.5 border-white/20 bg-white/5 normal-case tracking-normal text-white"
+                >
+                  <Loader2 className="size-3 animate-spin" />
+                  {detail?.length ?? 0}/{selected.count}
+                </Badge>
+              )}
+              <DownloadMenu mcqs={detail ?? []} topic={selected.topic} variant="onDark" />
+            </>
+          }
+        />
 
         {(() => {
           const running = !!detailStatus && detailStatus !== "done" && detailStatus !== "error";
@@ -225,22 +211,7 @@ export default function GenerationsPage() {
   // ---- List view -----------------------------------------------------------
   return (
     <div className="flex h-screen flex-col">
-      <header className="shrink-0 border-b border-blue-950/50 bg-blue-950 text-white">
-        <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between px-6">
-          <div className="flex items-center gap-2.5">
-            <div className="grid size-8 place-items-center rounded-md bg-white/10 text-white ring-1 ring-white/20">
-              <Sparkles className="size-4" />
-            </div>
-            <h1 className="text-sm font-semibold text-white">Generated Questions</h1>
-          </div>
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/10 hover:text-white">
-              <ArrowLeft />
-              Samples
-            </Button>
-          </Link>
-        </div>
-      </header>
+      <AppNav />
 
       <div className="border-b bg-card/30 px-6 py-3">
         <div className="mx-auto flex max-w-[1400px] items-center gap-3">
