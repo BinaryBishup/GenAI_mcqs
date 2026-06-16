@@ -357,6 +357,21 @@ async function generate(
 }
 
 /** Generate a single batch of `count` MCQs. Retries once on a parse failure. */
+/**
+ * Detect whether the chosen sample files are Application or Analysis questions
+ * from their names (the sample workbooks are labelled e.g. "… - Analysis").
+ * Returns the type when the selection is unambiguous, else null (let the model
+ * classify per sample).
+ */
+function detectSampleType(files: string[]): "application" | "analysis" | null {
+  const lc = files.map((f) => f.toLowerCase());
+  const hasApp = lc.some((f) => f.includes("application"));
+  const hasAna = lc.some((f) => f.includes("analysis"));
+  if (hasApp && !hasAna) return "application";
+  if (hasAna && !hasApp) return "analysis";
+  return null;
+}
+
 async function generateBatch(
   req: GenerateRequest,
   samplesBlock: string,
@@ -378,6 +393,7 @@ async function generateBatch(
     groundingBlock,
     mode: req.mode ?? "sample",
     questionKinds: req.question_kinds,
+    sampleTypeHint: detectSampleType(req.sample_files),
   });
 
   // Sized for a single small batch — generous headroom so a batch never

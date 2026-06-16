@@ -32,9 +32,8 @@ const QUALITY_OPTIONS: { value: Quality; label: string; sub: string; Icon: typeo
 ];
 
 const KIND_OPTIONS: { value: QuestionKind; label: string; hint: string; Icon: typeof Braces }[] = [
-  { value: "code", label: "Code snippet", hint: "read code, predict output / true statement", Icon: Braces },
-  { value: "application", label: "Application", hint: "real-world scenario, which approach fits", Icon: Puzzle },
-  { value: "analysis", label: "Analysis", hint: "compare, evaluate, diagnose, reason", Icon: FlaskConical },
+  { value: "application", label: "Application", hint: "use / implement a concept — one direct correct answer", Icon: Puzzle },
+  { value: "analysis", label: "Analysis", hint: "reason about behaviour, trade-offs, best practices", Icon: FlaskConical },
 ];
 
 const CODE_LANGS: Language[] = ["python", "java", "csharp", "cpp", "c", "javascript"];
@@ -50,6 +49,7 @@ export default function GeneratePage() {
   const [quality, setQuality] = useState<Quality>("fast");
   const [qualityTouched, setQualityTouched] = useState(false);
   const [kinds, setKinds] = useState<Set<QuestionKind>>(() => new Set<QuestionKind>(["application", "analysis"]));
+  const [codeBased, setCodeBased] = useState(false);
   const [language, setLanguage] = useState<Language>("python");
   const [grounding, setGrounding] = useState(true);
   const [extraPrompt, setExtraPrompt] = useState("");
@@ -69,7 +69,7 @@ export default function GeneratePage() {
 
   useEffect(() => () => { cancelRef.current?.(); }, []);
 
-  const mcqType: MCQType = kinds.has("code") ? "code" : "general";
+  const mcqType: MCQType = codeBased ? "code" : "general";
   const cleanResults = results.filter(Boolean);
   const phaseMsg = useMemo(() => {
     for (let i = events.length - 1; i >= 0; i--) {
@@ -261,7 +261,7 @@ export default function GeneratePage() {
               {topicError && <p className="text-[11px] text-destructive">Enter a topic to generate.</p>}
             </Field>
 
-            <Field label="Question kinds" hint={`${kinds.size} selected`}>
+            <Field label="Question type" hint={`${kinds.size} selected`}>
               <div className="grid gap-1.5">
                 {KIND_OPTIONS.map(({ value, label, hint, Icon }) => {
                   const on = kinds.has(value);
@@ -289,7 +289,35 @@ export default function GeneratePage() {
               </div>
             </Field>
 
-            {kinds.has("code") && (
+            <Field label="Vehicle">
+              <button
+                type="button"
+                onClick={() => setCodeBased((v) => !v)}
+                aria-pressed={codeBased}
+                className={cn(
+                  "flex w-full items-start gap-2.5 rounded-md border px-3 py-2 text-left transition-colors",
+                  codeBased ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50",
+                )}
+              >
+                <Braces className={cn("mt-0.5 size-4 shrink-0", codeBased ? "text-primary" : "text-muted-foreground")} />
+                <span className="min-w-0 flex-1">
+                  <span className={cn("block text-[13px] font-medium", codeBased ? "text-foreground" : "text-muted-foreground")}>
+                    Code / SQL based
+                  </span>
+                  <span className="block text-[10.5px] leading-snug text-muted-foreground/70">
+                    Frame questions around code or SQL snippets (works with either type)
+                  </span>
+                </span>
+                <span className={cn(
+                  "mt-0.5 flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors",
+                  codeBased ? "bg-primary" : "bg-muted-foreground/30",
+                )}>
+                  <span className={cn("size-4 rounded-full bg-white transition-transform", codeBased && "translate-x-4")} />
+                </span>
+              </button>
+            </Field>
+
+            {codeBased && (
               <Field label="Code language">
                 <select
                   value={language}

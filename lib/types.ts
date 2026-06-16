@@ -9,13 +9,16 @@ export type RunStatus = "pending" | "generating" | "plagchecking" | "revamping" 
 export type AnswerCheckStatus = "pending" | "agree" | "disagree" | "uncertain" | "skipped";
 
 /**
- * "From scratch" question styles the user can request when there is no sample
- * file to imitate. They map onto the canonical prompt shapes / framings.
- *   code        → code-snippet questions (Shape A/C: read code, predict output / true statement)
- *   application → real-world scenario / "which approach fits this situation" questions
- *   analysis    → analyse-and-evaluate / compare-options reasoning questions
+ * The two fundamental MCQ types (see the question-type taxonomy in prompts.ts).
+ *   application → use knowledge to perform/implement; ONE direct correct answer
+ *                 (which query/command, what will this code return, how to implement)
+ *   analysis    → reason about behaviour/consequences/relationships/best practices;
+ *                 several plausible distractors (why is X preferred, what happens if…,
+ *                 which approach is most appropriate and why, find the root cause)
+ * Code / SQL is a *vehicle* that can appear in either type — controlled separately
+ * by mcq_type ("code") + languages, not by this enum.
  */
-export type QuestionKind = "code" | "application" | "analysis";
+export type QuestionKind = "application" | "analysis";
 
 export interface CodeSnippet {
   language: Language;
