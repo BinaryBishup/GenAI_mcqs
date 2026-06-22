@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, ArrowRight, BookOpen, Braces, Check, Code2, Eye, Gauge, Minus, Play,
-  Plus, Sparkles, X, Zap,
+  ArrowLeft, ArrowRight, BookOpen, Braces, Check, ChevronLeft, ChevronRight, Code2,
+  Eye, Gauge, Minus, Play, Plus, Sparkles, X, Zap,
 } from "lucide-react";
 import { QUALITY_RULES, DEFAULT_RULE_IDS } from "@/lib/prompts";
 import {
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { fetchCatalog, fetchTopic } from "@/lib/api";
 import type {
   Difficulty, GenerateRequest, Language, MCQType, Quality,
-  SampleCatalogItem, SampleTopicMCQ,
+  SampleCatalogItem, SampleTopic, SampleTopicMCQ,
 } from "@/lib/types";
 
 interface Props {
@@ -42,6 +42,9 @@ const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
   { value: "hard", label: "Hard" },
 ];
 
+// Canonical low→high order for laying out difficulty toggles + buckets.
+const DIFFICULTY_ORDER: Difficulty[] = ["easy", "medium", "hard"];
+
 const QUALITY_OPTIONS: { value: Quality; label: string; sub: string; Icon: typeof Zap }[] = [
   { value: "fast", label: "Haiku", sub: "Fast", Icon: Zap },
   { value: "balanced", label: "Sonnet", sub: "Balanced", Icon: Gauge },
@@ -64,7 +67,8 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
   const [enabledRules, setEnabledRules] = useState<Set<string>>(() => new Set(DEFAULT_RULE_IDS));
 
   const [items, setItems] = useState<SampleCatalogItem[]>([]);
-  const [sampleMcq, setSampleMcq] = useState<SampleTopicMCQ | null>(null);
+  const [topic, setTopic] = useState<SampleTopic | null>(null);
+  const [sampleIndex, setSampleIndex] = useState(0);
 
   const filename = sampleFiles[0] ?? "";
   const multi = sampleFiles.length > 1;
@@ -85,6 +89,24 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
     ? `${sampleFiles.length} topics combined`
     : (selectedItems[0]?.topic ?? filename ?? "—");
 
+  // Only the difficulties present across the selected bank(s). Empty while the
+  // catalog is still loading — treat that as "all allowed" so nothing flickers
+  // disabled.
+  const availableDifficulties = useMemo(() => {
+    const present = new Set<Difficulty>();
+    selectedItems.forEach((i) => i.difficulties.forEach((d) => present.add(d)));
+    return DIFFICULTY_ORDER.filter((d) => present.has(d));
+  }, [selectedItems]);
+
+  const difficultyOptions = DIFFICULTY_OPTIONS.map((o) => ({
+    ...o,
+    disabled: availableDifficulties.length > 0 && !availableDifficulties.includes(o.value),
+  }));
+
+  // Preview tracks the chosen difficulty; the user can page through the bank.
+  const previewBucket = topic?.by_difficulty[difficulty] ?? [];
+  const sampleMcq = previewBucket[Math.min(sampleIndex, previewBucket.length - 1)] ?? null;
+
   useEffect(() => {
     if (!open) return;
     setStep(1);
@@ -98,20 +120,28 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
   useEffect(() => {
     if (sampleFiles.length === 0) {
       setItems([]);
-      setSampleMcq(null);
+      setTopic(null);
       return;
     }
     fetchCatalog()
       .then((cat) => setItems(cat.items))
       .catch(() => setItems([]));
     fetchTopic(filename)
-      .then((t) => {
-        const buckets = t.by_difficulty;
-        const pick = (buckets.medium?.[0] ?? buckets.easy?.[0] ?? buckets.hard?.[0]) ?? null;
-        setSampleMcq(pick);
-      })
-      .catch(() => setSampleMcq(null));
+      .then((t) => { setTopic(t); setSampleIndex(0); })
+      .catch(() => setTopic(null));
   }, [filename, sampleFiles.length]);
+
+  // If the current difficulty isn't in the selected bank(s) (e.g. default
+  // "medium" but the bank only has easy/hard), snap to the first available one.
+  useEffect(() => {
+    if (availableDifficulties.length > 0 && !availableDifficulties.includes(difficulty)) {
+      changeDifficulty(availableDifficulties[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableDifficulties]);
+
+  // Restart the preview at the top whenever the difficulty bucket changes.
+  useEffect(() => { setSampleIndex(0); }, [difficulty]);
 
   function changeDifficulty(d: Difficulty) {
     setDifficulty(d);
@@ -235,11 +265,11 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
                     <Counter value={count} min={1} max={50} onChange={setCount} />
                   </Field>
 
-                  <Field label="Difficulty">
+                  <Field label="Difficulty" hint={availableDifficulties.length > 0 ? "in samples" : undefined}>
                     <SegmentedControl
                       value={difficulty}
                       onChange={(v) => changeDifficulty(v)}
-                      options={DIFFICULTY_OPTIONS}
+                      options={difficultyOptions}
                     />
                   </Field>
 
@@ -279,7 +309,7 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
               {/* RIGHT — sample preview */}
               <section className="scrollbar-thin overflow-visible bg-muted/10 px-5 py-6 sm:px-7 lg:min-h-0 lg:overflow-y-auto">
                 <div className="flex items-center justify-between">
-                  <Label>{multi ? `Sample (1 of ${sampleFiles.length} files)` : "Sample from this topic"}</Label>
+                  <Label>{multi ? `Sample · file 1 of ${sampleFiles.length}` : "Sample from this topic"}</Label>
                   {filename && (
                     <Button variant="outline" size="xs" onClick={() => onPreview(filename)}>
                       <Eye />
@@ -287,10 +317,49 @@ export function ConfigDialog({ open, onOpenChange, sampleFiles, onStart, onPrevi
                     </Button>
                   )}
                 </div>
+
+                {previewBucket.length > 0 && (
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-muted-foreground">
+                      <span className="font-mono uppercase tracking-widest">{difficulty}</span>
+                      {" · question "}
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {Math.min(sampleIndex, previewBucket.length - 1) + 1}
+                      </span>
+                      {" of "}
+                      <span className="tabular-nums">{previewBucket.length}</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Previous sample"
+                        disabled={sampleIndex <= 0}
+                        onClick={() => setSampleIndex((i) => Math.max(0, i - 1))}
+                      >
+                        <ChevronLeft />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label="Next sample"
+                        disabled={sampleIndex >= previewBucket.length - 1}
+                        onClick={() => setSampleIndex((i) => Math.min(previewBucket.length - 1, i + 1))}
+                      >
+                        <ChevronRight />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-2">
                   {sampleMcq
                     ? <SamplePreviewCard mcq={sampleMcq} />
-                    : <p className="py-12 text-center text-sm text-muted-foreground">No sample preview available.</p>}
+                    : (
+                      <p className="py-12 text-center text-sm text-muted-foreground">
+                        No <span className="font-mono">{difficulty}</span> sample in this file.
+                      </p>
+                    )}
                 </div>
               </section>
             </>
@@ -468,7 +537,11 @@ function Counter({
 
 function SegmentedControl<T extends string>({
   value, onChange, options,
-}: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string; disabled?: boolean }[];
+}) {
   return (
     <div className="grid grid-cols-3 gap-1 rounded-md border bg-card p-0.5">
       {options.map((opt) => {
@@ -477,12 +550,16 @@ function SegmentedControl<T extends string>({
           <button
             key={opt.value}
             type="button"
+            disabled={opt.disabled}
+            title={opt.disabled ? "Not present in the selected sample(s)" : undefined}
             onClick={() => onChange(opt.value)}
             className={cn(
               "rounded-sm py-2 text-xs font-semibold uppercase tracking-widest transition-colors",
-              active
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              opt.disabled
+                ? "cursor-not-allowed text-muted-foreground/35"
+                : active
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
             {opt.label}
