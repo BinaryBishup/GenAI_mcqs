@@ -122,6 +122,32 @@ export interface SampleTopicMCQ {
   code: string | null;
 }
 
+/** One parsed-but-not-yet-saved sample question, shown in the upload preview. */
+export interface SamplePreviewMCQ {
+  topic: string;
+  difficulty: Difficulty;
+  type: MCQType;
+  language: Language | null;
+  question: string;
+  options: string[];
+  correct_index: number;
+  code: string | null;
+}
+
+/**
+ * Parsed contents of an uploaded workbook, grouped by difficulty so the user
+ * can review the whole bank before committing it to the catalog.
+ */
+export interface SamplePreviewResult {
+  ok: true;
+  topic: string;
+  source_file: string;
+  total: number;
+  code_count: number;
+  general_count: number;
+  by_difficulty: Record<Difficulty, SamplePreviewMCQ[]>;
+}
+
 export interface SampleCatalog {
   count: number;
   items: SampleCatalogItem[];
