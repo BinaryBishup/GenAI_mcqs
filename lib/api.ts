@@ -1,9 +1,31 @@
 import type {
-  GenerateRequest, MCQ, PastRunSummary, SampleCatalog, SampleTopic, StreamEvent,
+  GenerateRequest, MCQ, PastRunSummary, SampleCatalog, SamplePreviewResult,
+  SampleTopic, StreamEvent,
 } from "./types";
 
+/**
+ * `fetch` with a small retry on transport-level failures. It only *throws* on
+ * network errors (DNS, connection reset, the Next.js dev server's intermittent
+ * ERR_ALPN_NEGOTIATION_FAILED on a reused keep-alive socket) — never on HTTP
+ * error statuses — so a thrown error means the request never completed and is
+ * safe to retry with a fresh connection. A File/Blob body is re-readable, so
+ * the same FormData can be replayed.
+ */
+async function fetchWithRetry(input: RequestInfo | URL, init?: RequestInit, attempts = 3): Promise<Response> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fetch(input, init);
+    } catch (e) {
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 200 * (i + 1)));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+
 export async function fetchCatalog(): Promise<SampleCatalog> {
-  const res = await fetch("/api/samples");
+  const res = await fetchWithRetry("/api/samples", { cache: "no-store" });
   if (!res.ok) throw new Error(`catalog failed: ${res.status}`);
   return res.json();
 }
@@ -27,10 +49,21 @@ export async function uploadSample(file: File, topic: string): Promise<UploadSam
   const form = new FormData();
   form.append("file", file);
   form.append("topic", topic);
-  const res = await fetch("/api/samples/upload", { method: "POST", body: form });
+  const res = await fetchWithRetry("/api/samples/upload", { method: "POST", body: form });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error ?? `upload failed: ${res.status}`);
   return data as UploadSampleResult;
+}
+
+/** Parse a workbook and return its questions grouped by difficulty — no DB write. */
+export async function previewSample(file: File, topic: string): Promise<SamplePreviewResult> {
+  const form = new FormData();
+  form.append("file", file);
+  if (topic) form.append("topic", topic);
+  const res = await fetchWithRetry("/api/samples/preview", { method: "POST", body: form });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `preview failed: ${res.status}`);
+  return data as SamplePreviewResult;
 }
 
 export async function fetchPastRuns(source?: string): Promise<{ count: number; runs: PastRunSummary[] }> {
@@ -53,6 +86,13 @@ export async function fetchRun(id: string): Promise<{ run: PastRunSummary & { st
   return res.json();
 }
 
+/** Stored progress events for a run, in order — replays the live Timeline. */
+export async function fetchRunEvents(id: string): Promise<{ run_id: string; events: StreamEvent[] }> {
+  const res = await fetch(`/api/runs/${id}/events`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`run events fetch failed: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchFinal(runId: string): Promise<{ run_id: string; questions: any[] }> {
   const res = await fetch(`/api/runs/${runId}/final`);
   if (!res.ok) throw new Error(`final fetch failed: ${res.status}`);
@@ -62,6 +102,30 @@ export async function fetchFinal(runId: string): Promise<{ run_id: string; quest
 export async function health() {
   const res = await fetch("/api/health");
   return res.json();
+}
+
+/** Persist an edit to one MCQ (by run + index); server re-runs the answer-check. */
+export async function updateMcq(runId: string, index: number, mcq: MCQ): Promise<MCQ> {
+  const res = await fetch("/api/mcqs", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ run_id: runId, index, mcq }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `update failed: ${res.status}`);
+  return data.mcq as MCQ;
+}
+
+/** Ask the model to modify one MCQ per a natural-language instruction (not persisted). */
+export async function aiModifyMcq(mcq: MCQ, instruction: string): Promise<MCQ> {
+  const res = await fetch("/api/mcqs/modify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mcq, instruction }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `modify failed: ${res.status}`);
+  return data.mcq as MCQ;
 }
 
 /**

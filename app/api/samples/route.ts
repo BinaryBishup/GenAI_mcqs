@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const LANG_PATTERNS: { rx: RegExp; lang: string }[] = [
   { rx: /\bpython\b/i, lang: "python" },
@@ -24,10 +25,24 @@ function inferLanguageFromFilename(filename: string): string | null {
 /** Catalog: one row per source_file, with metadata aggregated. */
 export async function GET() {
   const supa = supabaseAdmin();
-  const { data, error } = await supa
-    .from("samples")
-    .select("source_file,topic,difficulty,type,language");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Supabase caps a single select at 1000 rows; the samples table is larger, so
+  // page through all rows (ordered by the PK for stable, non-overlapping ranges)
+  // before aggregating. Otherwise banks outside the first 1000 rows — including
+  // newly uploaded ones — silently vanish from the catalog.
+  const PAGE = 1000;
+  const data: { source_file: string; topic: string; difficulty: string; type: string; language: string | null }[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data: page, error } = await supa
+      .from("samples")
+      .select("source_file,topic,difficulty,type,language")
+      .order("id", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!page || page.length === 0) break;
+    data.push(...(page as typeof data));
+    if (page.length < PAGE) break;
+  }
 
   type Agg = {
     filename: string;

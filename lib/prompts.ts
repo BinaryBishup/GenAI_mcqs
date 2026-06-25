@@ -1,4 +1,4 @@
-import type { Difficulty, Language, MCQType } from "./types";
+import type { Difficulty, Language, MCQType, QuestionKind } from "./types";
 
 interface SampleForPrompt {
   topic: string;
@@ -40,6 +40,30 @@ SHAPE C — "Which statements about this code are true?" (code-in-stem, sentence
   - type = "code"; question.snippet holds the code
   - options are 4 full sentences (each makes a claim about the code's behaviour)
   - correct option = the true statement
+
+## Factual accuracy (non-negotiable — a wrong answer key is worse than a dull question)
+- The option you mark correct MUST actually be correct, and every distractor MUST actually be wrong. Exactly one option is defensibly correct.
+- Do NOT invent APIs, methods, syntax, numbers, dates, or behaviours you are not certain of. If you are unsure a fact is true, do not build a question on it.
+- If a <reference_material> block is provided in the user message, treat it as the source of truth: ground every factual claim in it and do not assert anything it does not support. Prefer questions whose answer the reference material clearly settles.
+- The explanation must correctly justify the correct answer using real reasoning — never a circular restatement.
+
+## Question-type taxonomy (classify EVERY question as exactly one)
+Before writing each MCQ, decide whether it is APPLICATION or ANALYSIS, and build it to that type's rules. Code/SQL can appear in EITHER type — it is a vehicle, not a type.
+
+APPLICATION — "Can I USE my knowledge to perform or implement something?"
+  - Applies a known concept, syntax, command, function, or procedure to a practical situation.
+  - Has ONE direct, defensibly-correct answer; the focus is implementation or execution.
+  - The candidate decides WHAT to do, or WHAT the output will be.
+  - Vehicles: code snippets, config/CLI commands, SQL statements, or concrete business scenarios.
+  - Typical asks/verbs: "Which query/command should be used?", "What will this code return?", "How would you implement X?", "Configure / write / create / apply / calculate / determine…".
+
+ANALYSIS — "Can I REASON about behaviour, consequences, relationships, or best practices?"
+  - Requires reasoning, not recall: examine information, compare alternatives, interpret results, find the root cause, weigh trade-offs, judge the most appropriate approach.
+  - Often troubleshooting, optimisation, best-practice, architecture, or output-interpretation.
+  - Has SEVERAL plausible distractors — eliminating them requires understanding WHY.
+  - Typical asks/verbs: "Why is X preferred?", "What is the impact of this design choice?", "What happens if…?", "Which approach is most appropriate and why?", "Identify the root cause", "Compare / evaluate / interpret / assess / justify…".
+
+Boundary note: the SAME code can yield either type — "What will this code return?" is APPLICATION; "Why does this query give unexpected results?" or "What happens after a rollback to a savepoint?" is ANALYSIS. The user message states which type(s) to produce (from-scratch) or which type to match (from samples).
 
 ## Hard rules (structure — non-negotiable)
 - Output ONLY a raw JSON array. Your FIRST character MUST be '[' and your LAST character MUST be ']'. No \`\`\`json, no \`\`\`, no leading "Here is...", no trailing prose, no explanation outside the array. Any wrapping is a parse failure.
@@ -281,6 +305,49 @@ export function buildSamplesBlock(samples: SampleForPrompt[], requestedCount = 5
   return lines.join("\n");
 }
 
+/**
+ * Scratch mode (no sample file): synthesise a generation profile from the
+ * question "kinds" the user picked, so the model still has concrete shape
+ * guidance and the quality rules remain meaningful without samples to imitate.
+ */
+export function buildScratchProfile(
+  kinds: QuestionKind[],
+  count: number,
+  mcqType: MCQType,
+): string {
+  const set = new Set<QuestionKind>(kinds.length ? kinds : ["application", "analysis"]);
+  const types = [...set];
+  const codeVehicle = mcqType === "code";
+  const lines: string[] = [
+    "<generation_profile>",
+    "No sample file is provided — you are generating from the topic directly. Follow the question-type taxonomy in the system instructions and this profile:",
+    `total: ${count} MCQs, each with exactly 4 options.`,
+  ];
+  if (types.length === 2) {
+    lines.push("requested_types: produce a roughly even mix of APPLICATION and ANALYSIS questions; label each in your head and build it to that type's rules.");
+  } else if (types[0] === "application") {
+    lines.push("requested_types: ALL questions must be APPLICATION (use/implement/execute; one direct correct answer).");
+  } else {
+    lines.push("requested_types: ALL questions must be ANALYSIS (reason about behaviour/consequences/best practices; several plausible distractors).");
+  }
+  if (codeVehicle) {
+    lines.push(
+      "code_vehicle: ON — frame questions around code/SQL. For APPLICATION put a short deterministic snippet in question.snippet and ask which implementation is correct / what it returns; for ANALYSIS show code/SQL and ask why it behaves a certain way, what happens, or which approach is best. Keep snippets short and self-contained.",
+    );
+  } else {
+    lines.push(
+      "code_vehicle: OFF — use prose scenarios and concepts, no code snippet in the stem unless genuinely essential.",
+    );
+  }
+  lines.push(
+    "distractors: APPLICATION = one clearly-correct option, the rest clearly wrong; ANALYSIS = several plausible options that require reasoning to eliminate.",
+    "option_style: all four options parallel in form and within ~20% of each other in length.",
+    "stem_length: roughly 20–60 words; analysis / scenario stems may run longer for setup.",
+    "</generation_profile>",
+  );
+  return lines.join("\n");
+}
+
 export function buildUserPrompt(args: {
   count: number;
   topic: string;
@@ -294,6 +361,13 @@ export function buildUserPrompt(args: {
   negativePrompt?: string;
   /** Subset of QUALITY_RULES ids to apply this call. Defaults to all rules. */
   qualityRules?: string[];
+  /** Prompt-ready <reference_material> block from the grounding step. */
+  groundingBlock?: string;
+  /** 'scratch' = no samples; drive shape from questionKinds instead. */
+  mode?: "sample" | "scratch";
+  questionKinds?: QuestionKind[];
+  /** Sample mode: detected Application/Analysis type of the source samples, if known. */
+  sampleTypeHint?: QuestionKind | null;
 }): string {
   const langs = args.mcqType === "code" && args.languages.length > 0
     ? `Languages allowed: ${args.languages.join(", ")}. Pick one language per question; vary across the set.`
@@ -305,22 +379,57 @@ export function buildUserPrompt(args: {
   const avoid = args.negativePrompt?.trim()
     ? `\nAvoid the following:\n${args.negativePrompt.trim()}`
     : "";
+  const isScratch = args.mode === "scratch";
+  const ground = args.groundingBlock?.trim()
+    ? [
+        "GROUND YOUR FACTS — a <reference_material> block is provided above. Every factual claim, correct answer, and distractor must be consistent with it. Do not assert anything it does not support; if it is silent on a point, fall back only to well-established, certain knowledge. Prefer questions the reference clearly settles.",
+        "",
+      ]
+    : [];
+
+  const sampleType = args.sampleTypeHint;
+  const typeBlock = isScratch
+    ? []
+    : [
+        "",
+        "QUESTION TYPE — apply the question-type taxonomy in the system instructions:",
+        sampleType
+          ? `  These samples are ${sampleType.toUpperCase()} questions. Every MCQ you generate MUST be ${sampleType.toUpperCase()} too — ${sampleType === "application" ? "use/implement a concept with ONE direct correct answer" : "require reasoning about behaviour/consequences/best practices, with SEVERAL plausible distractors"}.`
+          : "  Classify each sample as APPLICATION or ANALYSIS, then match the same type, framing, and distractor style in your generated questions.",
+      ];
+
+  const shapeBlock = isScratch
+    ? [
+        "FOLLOW THE <generation_profile> ABOVE. Before generating:",
+        "  1. Decide each question's TYPE (Application or Analysis) per requested_types, then build it to that type's rules.",
+        "  2. Write a stem and 4 parallel options that fit the type — Application = one direct correct answer; Analysis = several plausible distractors needing reasoning to eliminate.",
+        "  3. If code_vehicle is ON, put deterministic code/SQL in question.snippet where it fits the type.",
+        "  4. Vary scenarios (industries, use cases), entity names, and the concept under test from question to question — do not replicate one template.",
+      ]
+    : [
+        "FORMAT PARITY IS THE #1 REQUIREMENT — it overrides every other rule below. Before generating:",
+        "  1. Read <format_profile> and the per-sample 'shape:' labels.",
+        "  2. Match the required_output_distribution EXACTLY (Shape A count + Shape B count + Shape C count).",
+        "  3. For each MCQ, before writing it, decide its shape and confirm: stem length in question_words range, options follow the shape's option style, code lives where samples put it.",
+        "  4. If samples use code IN OPTIONS (Shape B), each of your 4 options must be a fenced code block (```java …```), NOT a 1-word stdout string.",
+        "  5. If samples use sentence options (Shape C), each option must be a full declarative sentence, NOT a 1-word value.",
+        "Generating all-Shape-A 'what is printed?' questions when samples are dominated by Shape B/C is the most common mistake — do not make it.",
+        "",
+        "PATTERN VARIETY ACROSS THE BATCH — when the same source file gives you many samples, those samples cover several distinct question patterns (definition lookup, scenario→service, troubleshooting, comparison, true-statement, etc.). DO NOT pick one pattern and replicate it across all your generated MCQs. Spread your output across the different patterns visible in the samples, in roughly the proportions they appear. Vary scenarios (industries, use cases), entity names, and concepts under test from question to question.",
+      ];
+
   const instruction = [
     `Generate ${args.count} novel MCQs.`,
     `Topic: ${args.topic}`,
     `Difficulty: ${args.difficulty}`,
-    `Type hint (overall): ${args.mcqType}  — but the actual per-question SHAPE (A/B/C) comes from <format_profile> above, not from this hint.`,
+    isScratch
+      ? `Type hint (overall): ${args.mcqType} — per-question shape comes from <generation_profile> above.`
+      : `Type hint (overall): ${args.mcqType}  — but the actual per-question SHAPE (A/B/C) comes from <format_profile> above, not from this hint.`,
     langs,
     "",
-    "FORMAT PARITY IS THE #1 REQUIREMENT — it overrides every other rule below. Before generating:",
-    "  1. Read <format_profile> and the per-sample 'shape:' labels.",
-    "  2. Match the required_output_distribution EXACTLY (Shape A count + Shape B count + Shape C count).",
-    "  3. For each MCQ, before writing it, decide its shape and confirm: stem length in question_words range, options follow the shape's option style, code lives where samples put it.",
-    "  4. If samples use code IN OPTIONS (Shape B), each of your 4 options must be a fenced code block (```java …```), NOT a 1-word stdout string.",
-    "  5. If samples use sentence options (Shape C), each option must be a full declarative sentence, NOT a 1-word value.",
-    "Generating all-Shape-A 'what is printed?' questions when samples are dominated by Shape B/C is the most common mistake — do not make it.",
-    "",
-    "PATTERN VARIETY ACROSS THE BATCH — when the same source file gives you many samples, those samples cover several distinct question patterns (definition lookup, scenario→service, troubleshooting, comparison, true-statement, etc.). DO NOT pick one pattern and replicate it across all your generated MCQs. Spread your output across the different patterns visible in the samples, in roughly the proportions they appear. Vary scenarios (industries, use cases), entity names, and concepts under test from question to question.",
+    ...ground,
+    ...shapeBlock,
+    ...typeBlock,
     "",
     rulesBlock,
     extra,
@@ -330,7 +439,10 @@ export function buildUserPrompt(args: {
   ].filter(Boolean).join("\n");
 
   return [
-    args.samplesBlock,
+    args.groundingBlock?.trim() ? args.groundingBlock.trim() : "",
+    isScratch
+      ? buildScratchProfile(args.questionKinds ?? [], args.count, args.mcqType)
+      : args.samplesBlock,
     args.freeFormSamples ? `\nAdditional sample notes:\n${args.freeFormSamples}` : "",
     "",
     instruction,
@@ -366,6 +478,38 @@ export function buildRevampPrompt(args: {
     matchSummary,
     "",
     "## Current MCQ",
+    JSON.stringify(args.mcq, null, 2),
+  ].join("\n");
+}
+
+export function buildModifyPrompt(args: {
+  mcq: {
+    type: MCQType;
+    topic: string;
+    difficulty: Difficulty;
+    question: string;
+    options: string[];
+    correct_index: number;
+    explanation?: string | null;
+    snippet?: { language: Language; code: string } | null;
+  };
+  instruction: string;
+}): string {
+  return [
+    "You are editing a single multiple-choice question. Apply the user's requested change and return the corrected MCQ.",
+    "",
+    "Rules:",
+    "- Apply ONLY what the instruction asks; preserve everything else.",
+    "- Keep exactly 4 options and exactly one defensibly-correct answer.",
+    "- correct_index is 0-based (0..3) and MUST point at the actually-correct option after your edit.",
+    "- Keep factual accuracy: the correct option must be truly correct and distractors truly wrong. Do not invent APIs/syntax/values you are unsure of.",
+    "- Refer to options by content in the explanation, never by position.",
+    "- For code questions, keep snippet.code consistent with the answer.",
+    "- Output ONLY a raw JSON object (no prose, no ``` fences) with keys: type, topic, difficulty, question, options (4 strings), correct_index, explanation, and snippet ({language, code}) when relevant.",
+    "",
+    `Instruction from the user:\n${args.instruction.trim()}`,
+    "",
+    "Current MCQ:",
     JSON.stringify(args.mcq, null, 2),
   ].join("\n");
 }

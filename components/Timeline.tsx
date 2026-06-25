@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import {
-  Activity, AlertTriangle, CheckCircle2, RefreshCcw, Search, Terminal,
+  Activity, AlertTriangle, CheckCircle2, RefreshCcw, Search, ShieldCheck, Terminal,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ const ICONS: Record<string, any> = {
   revamping: RefreshCcw,
   code_verify: Terminal,
   code_verified: CheckCircle2,
+  answer_checked: ShieldCheck,
   question_done: CheckCircle2,
   workflow_done: CheckCircle2,
   warn: AlertTriangle,
@@ -43,6 +44,7 @@ const TONES: Record<string, Tone> = {
   revamping: "info",
   code_verify: "info",
   plag_check: "info",
+  answer_checked: "info",
   warn: "warning",
   error: "destructive",
 };
@@ -62,6 +64,15 @@ function describe(e: StreamEvent): string {
     case "revamping": return `Q${d.index + 1}: revamping (attempt ${d.attempt})`;
     case "code_verify": return `Q${d.index + 1}: compiling ${d.language}`;
     case "code_verified": return `Q${d.index + 1}: code verified — ${d.info?.fix || "ok"}`;
+    case "answer_checked": {
+      const s = d.info?.status as string | undefined;
+      const label = s === "agree" ? "answer confirmed ✓"
+        : s === "disagree" ? "answer key suspect ⚠"
+        : s === "uncertain" ? "answer unconfirmed"
+        : s === "skipped" ? "answer-check skipped"
+        : "checked";
+      return `Q${d.index + 1}: ${label}`;
+    }
     case "question_done": return `Q${d.index + 1}: done`;
     case "workflow_done": return `Workflow done — ${d.count} questions`;
     case "warn": return `⚠ ${d.message}`;

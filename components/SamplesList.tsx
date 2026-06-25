@@ -1,21 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  BookOpen, Braces, Code2, Eye, Play, Plus, Search, Sparkles,
+  BookOpen, Braces, Code2, Eye, Layers, Play, Plus, Search, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AddSampleModal } from "@/components/AddSampleModal";
 import { fetchCatalog } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { SampleCatalogItem } from "@/lib/types";
 
 interface Props {
-  /** Pick a sample file for the create dialog. */
-  onCreate: (filename: string) => void;
+  /** Start a batch from one or more sample files (topic-wide = many). */
+  onCreate: (filenames: string[]) => void;
   /** Open the topic-browser modal for this filename. */
   onPreview: (filename: string) => void;
 }
@@ -24,6 +24,7 @@ export function SamplesList({ onCreate, onPreview }: Props) {
   const [items, setItems] = useState<SampleCatalogItem[] | null>(null);
   const [filter, setFilter] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   async function load() {
     const data = await fetchCatalog();
@@ -46,6 +47,28 @@ export function SamplesList({ onCreate, onPreview }: Props) {
     );
   }, [items, filter]);
 
+  function toggle(filename: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(filename)) next.delete(filename); else next.add(filename);
+      return next;
+    });
+  }
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((i) => selected.has(i.filename));
+  function toggleAllFiltered() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) filtered.forEach((i) => next.delete(i.filename));
+      else filtered.forEach((i) => next.add(i.filename));
+      return next;
+    });
+  }
+
+  // Selected files in catalog order, plus their combined sample count.
+  const selectedItems = (items ?? []).filter((i) => selected.has(i.filename));
+  const selectedCount = selectedItems.reduce((n, i) => n + i.count, 0);
+
   return (
     <div className="flex h-full flex-col">
       <div className="border-b bg-card/30 px-6 py-3">
@@ -64,18 +87,38 @@ export function SamplesList({ onCreate, onPreview }: Props) {
               {filtered.length} / {items.length}
             </span>
           )}
-          <Link href="/generations">
-            <Button variant="outline" size="sm">
-              <Sparkles />
-              Generated questions
-            </Button>
-          </Link>
           <Button size="sm" onClick={() => setAddOpen(true)}>
             <Plus />
             Add samples
           </Button>
         </div>
       </div>
+
+      {/* topic-wide selection bar */}
+      {selected.size > 0 && (
+        <div className="border-b bg-primary/5 px-6 py-2.5">
+          <div className="mx-auto flex max-w-[1400px] items-center gap-3">
+            <Layers className="size-4 text-primary" />
+            <span className="text-sm font-medium">
+              {selected.size} file{selected.size === 1 ? "" : "s"} selected
+              <span className="ml-1.5 font-normal text-muted-foreground">· {selectedCount} sample questions combined</span>
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+                <X />
+                Clear
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => onCreate(selectedItems.map((i) => i.filename))}
+              >
+                <Play />
+                Generate from {selected.size} file{selected.size === 1 ? "" : "s"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AddSampleModal
         open={addOpen}
@@ -94,7 +137,14 @@ export function SamplesList({ onCreate, onPreview }: Props) {
               <table className="w-full text-sm">
                 <thead className="border-b bg-muted/30 text-[11px] uppercase tracking-widest text-muted-foreground">
                   <tr>
-                    <th className="py-3 pl-6 text-left font-medium">Topic</th>
+                    <th className="w-10 py-3 pl-6">
+                      <Checkbox
+                        checked={allFilteredSelected}
+                        onCheckedChange={toggleAllFiltered}
+                        aria-label="Select all"
+                      />
+                    </th>
+                    <th className="py-3 text-left font-medium">Topic</th>
                     <th className="py-3 text-left font-medium">Type</th>
                     <th className="py-3 text-left font-medium">Language</th>
                     <th className="py-3 text-right font-medium">Questions</th>
@@ -106,7 +156,9 @@ export function SamplesList({ onCreate, onPreview }: Props) {
                     <TopicRow
                       key={i.filename}
                       item={i}
-                      onCreate={() => onCreate(i.filename)}
+                      selected={selected.has(i.filename)}
+                      onToggle={() => toggle(i.filename)}
+                      onCreate={() => onCreate([i.filename])}
                       onPreview={() => onPreview(i.filename)}
                     />
                   ))}
@@ -121,16 +173,21 @@ export function SamplesList({ onCreate, onPreview }: Props) {
 }
 
 function TopicRow({
-  item, onCreate, onPreview,
+  item, selected, onToggle, onCreate, onPreview,
 }: {
   item: SampleCatalogItem;
+  selected: boolean;
+  onToggle: () => void;
   onCreate: () => void;
   onPreview: () => void;
 }) {
   const code = item.primary_type === "code";
   return (
-    <tr className="border-b transition-colors last:border-0 hover:bg-muted/40">
+    <tr className={cn("border-b transition-colors last:border-0 hover:bg-muted/40", selected && "bg-primary/5")}>
       <td className="py-3 pl-6">
+        <Checkbox checked={selected} onCheckedChange={onToggle} aria-label={`Select ${item.topic}`} />
+      </td>
+      <td className="py-3">
         <div className="flex flex-col">
           <span className="font-medium">{item.topic}</span>
           <span className="font-mono text-[10px] text-muted-foreground">{item.filename}</span>

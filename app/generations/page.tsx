@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, Download, FileJson,
+  Activity, AlertTriangle, CheckCircle2, Download, FileJson,
   FileSpreadsheet, FileUp, Loader2, Search, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,9 +12,13 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MCQCard } from "@/components/MCQCard";
-import { fetchPastRuns, fetchRun, fetchRunResults } from "@/lib/api";
+import { DownloadMenu } from "@/components/DownloadMenu";
+import { Timeline } from "@/components/Timeline";
+import { AppNav } from "@/components/AppNav";
+import { fetchPastRuns, fetchRun, fetchRunEvents, fetchRunResults } from "@/lib/api";
 import { downloadMCQs, type DownloadFormat } from "@/lib/download";
-import type { MCQ, PastRunSummary, RunStatus } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import type { MCQ, PastRunSummary, RunStatus, StreamEvent } from "@/lib/types";
 
 export default function GenerationsPage() {
   const [runs, setRuns] = useState<PastRunSummary[] | null>(null);
@@ -29,6 +32,7 @@ export default function GenerationsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailStatus, setDetailStatus] = useState<RunStatus | null>(null);
+  const [detailEvents, setDetailEvents] = useState<StreamEvent[]>([]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -85,12 +89,19 @@ export default function GenerationsPage() {
     setDetailError(null);
     setDetailLoading(true);
     setDetailStatus(selected.status);
+    setDetailEvents([]);
 
     async function tick() {
       try {
-        const data = await fetchRun(runId);
+        // Fetch questions + the progress log together so reopening a run shows
+        // the same live "process" (Timeline) it does while first generating.
+        const [data, evts] = await Promise.all([
+          fetchRun(runId),
+          fetchRunEvents(runId).catch(() => ({ events: [] as StreamEvent[] })),
+        ]);
         if (cancelled) return;
         setDetail(data.mcqs.filter(Boolean));
+        setDetailEvents(evts.events ?? []);
         setDetailStatus(data.run.status as RunStatus);
         setDetailLoading(false);
         if (!TERMINAL.has(data.run.status as RunStatus)) {
@@ -112,83 +123,87 @@ export default function GenerationsPage() {
   if (selected) {
     return (
       <div className="flex h-screen flex-col">
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-blue-950/50 bg-blue-950 px-6 py-3 text-white">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelected(null)}
-              className="text-white/90 hover:bg-white/10 hover:text-white"
-            >
-              <ArrowLeft />
-              Back
-            </Button>
-            <div className="h-6 w-px bg-white/15" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-white">{selected.topic}</p>
-              <p className="mt-0.5 truncate text-[11px] text-white/60">
-                {selected.count} × {selected.difficulty} {selected.mcq_type} · {selected.quality} ·{" "}
-                {formatDate(selected.started_at)}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {detailStatus && detailStatus !== "done" && detailStatus !== "error" && (
-              <Badge
-                variant="outline"
-                className="gap-1.5 border-white/20 bg-white/5 normal-case tracking-normal text-white"
-              >
-                <Loader2 className="size-3 animate-spin" />
-                {detail?.length ?? 0}/{selected.count}
-              </Badge>
-            )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!detail || detail.length === 0}
-                className="border-white/25 bg-white/5 text-white hover:bg-white/15 hover:text-white aria-expanded:bg-white/15 disabled:text-white/40"
-              >
-                <Download />
-                Download
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {(["json", "csv", "mettl"] as const).map((fmt) => (
-                <DropdownMenuItem
-                  key={fmt}
-                  onClick={() => detail && downloadMCQs(detail, fmt, selected.topic)}
+        <AppNav
+          back={{ onClick: () => setSelected(null), label: "Back" }}
+          title={selected.topic}
+          subtitle={`${selected.count} × ${selected.difficulty} ${selected.mcq_type} · ${selected.quality} · ${formatDate(selected.started_at)}`}
+          actions={
+            <>
+              {detailStatus && detailStatus !== "done" && detailStatus !== "error" && (
+                <Badge
+                  variant="outline"
+                  className="gap-1.5 border-white/20 bg-white/5 normal-case tracking-normal text-white"
                 >
-                  {fmt === "json" && <FileJson />}
-                  {fmt === "csv" && <FileSpreadsheet />}
-                  {fmt === "mettl" && <FileUp />}
-                  {fmt === "json" ? "JSON" : fmt === "csv" ? "CSV" : "Mettl bulk-upload (.xls)"}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          </div>
-        </header>
+                  <Loader2 className="size-3 animate-spin" />
+                  {detail?.length ?? 0}/{selected.count}
+                </Badge>
+              )}
+              <DownloadMenu mcqs={detail ?? []} topic={selected.topic} variant="onDark" />
+            </>
+          }
+        />
 
-        <div className="scrollbar-thin flex-1 min-h-0 overflow-y-auto">
-          <div className="mx-auto max-w-[900px] space-y-4 px-6 py-6">
-            {detailLoading && (
-              <p className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" /> Loading questions…
-              </p>
-            )}
-            {detailError && <p className="py-10 text-center text-sm text-destructive">{detailError}</p>}
-            {detail && detail.length === 0 && !detailLoading && (
-              <p className="py-16 text-center text-sm text-muted-foreground">
-                {detailStatus && detailStatus !== "done" && detailStatus !== "error"
-                  ? "Generating… questions will appear here as they finish."
-                  : "This run has no stored questions."}
-              </p>
-            )}
-            {detail?.map((q, i) => <MCQCard key={q.id || i} mcq={q} index={i} />)}
-          </div>
-        </div>
+        {(() => {
+          const running = !!detailStatus && detailStatus !== "done" && detailStatus !== "error";
+          const showTimeline = detailEvents.length > 0 || running;
+          return (
+            <div
+              className={cn(
+                "grid min-h-0 flex-1 grid-cols-1",
+                showTimeline && "lg:grid-cols-[minmax(0,1fr)_400px]",
+              )}
+            >
+              {/* questions (left) */}
+              <section className="flex min-h-0 flex-col lg:border-r">
+                <div className="scrollbar-thin flex-1 min-h-0 overflow-y-auto">
+                  <div className="mx-auto max-w-[900px] space-y-4 px-6 py-6">
+                    {detailLoading && (
+                      <p className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+                        <Loader2 className="size-4 animate-spin" /> Loading questions…
+                      </p>
+                    )}
+                    {detailError && <p className="py-10 text-center text-sm text-destructive">{detailError}</p>}
+                    {detail && detail.length === 0 && !detailLoading && (
+                      <p className="py-16 text-center text-sm text-muted-foreground">
+                        {running
+                          ? "Generating… questions will appear here as they finish."
+                          : "This run has no stored questions."}
+                      </p>
+                    )}
+                    {detail?.map((q, i) => (
+                      <MCQCard
+                        key={q.id || i}
+                        mcq={q}
+                        index={i}
+                        runId={selected.id}
+                        onChange={(m) => setDetail((prev) => {
+                          if (!prev) return prev;
+                          const n = [...prev]; n[i] = m; return n;
+                        })}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              {/* live process timeline (right) */}
+              {showTimeline && (
+                <aside className="flex min-h-0 flex-col border-t lg:border-t-0">
+                  <div className="flex shrink-0 items-center justify-between border-b px-6 py-3">
+                    <div className="flex items-center gap-2">
+                      {running
+                        ? <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                        : <Activity className="size-4 text-muted-foreground" />}
+                      <h2 className="text-[11px] font-semibold uppercase tracking-widest">Process</h2>
+                    </div>
+                    <Badge variant="outline">{detailEvents.length}</Badge>
+                  </div>
+                  <Timeline events={detailEvents} running={running} />
+                </aside>
+              )}
+            </div>
+          );
+        })()}
       </div>
     );
   }
@@ -196,22 +211,7 @@ export default function GenerationsPage() {
   // ---- List view -----------------------------------------------------------
   return (
     <div className="flex h-screen flex-col">
-      <header className="shrink-0 border-b border-blue-950/50 bg-blue-950 text-white">
-        <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between px-6">
-          <div className="flex items-center gap-2.5">
-            <div className="grid size-8 place-items-center rounded-md bg-white/10 text-white ring-1 ring-white/20">
-              <Sparkles className="size-4" />
-            </div>
-            <h1 className="text-sm font-semibold text-white">Generated Questions</h1>
-          </div>
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/10 hover:text-white">
-              <ArrowLeft />
-              Samples
-            </Button>
-          </Link>
-        </div>
-      </header>
+      <AppNav />
 
       <div className="border-b bg-card/30 px-6 py-3">
         <div className="mx-auto flex max-w-[1400px] items-center gap-3">

@@ -3,6 +3,8 @@ import { supabaseAdmin } from "./supabase";
 import { env } from "./env";
 import { checkPlag } from "./plag";
 import { verifyCodeMCQ, applyVerifyFix } from "./verify";
+import { buildGroundingPack } from "./grounding";
+import { checkAnswer } from "./answer-check";
 import {
   SYSTEM_INSTRUCTIONS,
   buildSamplesBlock,
@@ -77,9 +79,41 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
     const samples = await loadSamples(req);
     const samplesBlock = buildSamplesBlock(samples, req.count);
 
+    // ---- 2b. Ground facts (one web search per run) -------------------------
+    // Grounding defaults ON; the model is then told to only assert facts the
+    // reference material supports. The main lever against fact-hallucination
+    // in conceptual MCQs. Best-effort: an empty pack just means ungrounded.
+    let groundingBlock = "";
+    const wantGrounding = req.grounding !== false;
+    if (wantGrounding) {
+      log({ type: "phase", data: { phase: "grounding", message: "Gathering reference material..." } });
+      const pack = await buildGroundingPack({
+        topic: req.topic,
+        mcqType: req.mcq_type,
+        difficulty: req.difficulty,
+        focus: req.extra_prompt,
+      });
+      groundingBlock = pack.block;
+      log({
+        type: "phase",
+        data: {
+          phase: "grounding",
+          message: pack.ok
+            ? `Grounded on ${pack.sources.length} source(s).`
+            : "No reference material found — generating ungrounded.",
+        },
+      });
+    }
+    // Persist run provenance (best-effort: columns exist only after migration 003).
+    await bestEffortUpdate(supa, "runs", runId, {
+      mode: req.mode ?? "sample",
+      grounded: wantGrounding && groundingBlock.length > 0,
+      question_kinds: req.question_kinds ?? [],
+    });
+
     // ---- 3. Generate draft -------------------------------------------------
     log({ type: "phase", data: { phase: "generate", message: `Generating with ${model}...` } });
-    const draft = await generate(req, samplesBlock, model, (done, total) => {
+    const draft = await generate(req, samplesBlock, model, groundingBlock, (done, total) => {
       log({ type: "phase", data: { phase: "generate", message: `Generated ${done}/${total} with ${model}...` } });
     });
     log({ type: "generated", data: { count: draft.length } });
@@ -138,6 +172,36 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
             type: "code_verified",
             data: { index: i, info: outcome },
           });
+        }),
+      );
+    }
+
+    // ---- 5b. Answer-check (non-code correctness) ---------------------------
+    // Code MCQs are (optionally) checked by execution above. Everything else —
+    // Shape-B "which implementation", Shape-C "which statement is true", and
+    // all general/conceptual MCQs — has its answer key independently re-derived
+    // by a separate model call. Disagreements are flagged (and, per config,
+    // excluded from the default export) rather than silently shipped.
+    const checkIndices = mcqs.map((m, i) => (m.type !== "code" ? i : -1)).filter((i) => i >= 0);
+    if (checkIndices.length > 0) {
+      await supa.from("runs").update({ status: "verifying" }).eq("id", runId);
+      log({
+        type: "phase",
+        data: { phase: "answercheck", message: `Independently checking ${checkIndices.length} answer key(s)...` },
+      });
+      await Promise.all(
+        checkIndices.map(async (i) => {
+          const mcq = mcqs[i];
+          const res = await checkAnswer(mcq, groundingBlock);
+          mcq.answer_check_status = res.status;
+          mcq.answer_check_index = res.index;
+          mcq.answer_check_notes = res.notes;
+          await bestEffortUpdate(supa, "mcqs", null, {
+            answer_check_status: res.status,
+            answer_check_index: res.index,
+            answer_check_notes: res.notes,
+          }, { run_id: runId, index: i });
+          log({ type: "answer_checked", data: { index: i, info: res } });
         }),
       );
     }
@@ -241,6 +305,7 @@ async function generate(
   req: GenerateRequest,
   samplesBlock: string,
   model: string,
+  groundingBlock: string,
   onProgress?: ProgressCb,
 ): Promise<MCQ[]> {
   const total = req.count;
@@ -264,7 +329,7 @@ async function generate(
       const idx = nextIdx++;
       if (idx >= batchCounts.length) return;
       try {
-        results[idx] = await generateBatch(req, samplesBlock, model, batchCounts[idx]);
+        results[idx] = await generateBatch(req, samplesBlock, model, groundingBlock, batchCounts[idx]);
       } catch (err) {
         lastError = err instanceof Error ? err : new Error(String(err));
         results[idx] = [];
@@ -292,10 +357,26 @@ async function generate(
 }
 
 /** Generate a single batch of `count` MCQs. Retries once on a parse failure. */
+/**
+ * Detect whether the chosen sample files are Application or Analysis questions
+ * from their names (the sample workbooks are labelled e.g. "… - Analysis").
+ * Returns the type when the selection is unambiguous, else null (let the model
+ * classify per sample).
+ */
+function detectSampleType(files: string[]): "application" | "analysis" | null {
+  const lc = files.map((f) => f.toLowerCase());
+  const hasApp = lc.some((f) => f.includes("application"));
+  const hasAna = lc.some((f) => f.includes("analysis"));
+  if (hasApp && !hasAna) return "application";
+  if (hasAna && !hasApp) return "analysis";
+  return null;
+}
+
 async function generateBatch(
   req: GenerateRequest,
   samplesBlock: string,
   model: string,
+  groundingBlock: string,
   count: number,
 ): Promise<any[]> {
   const userPrompt = buildUserPrompt({
@@ -309,6 +390,10 @@ async function generateBatch(
     extraInstructions: req.extra_prompt,
     negativePrompt: req.negative_prompt,
     qualityRules: req.quality_rules,
+    groundingBlock,
+    mode: req.mode ?? "sample",
+    questionKinds: req.question_kinds,
+    sampleTypeHint: detectSampleType(req.sample_files),
   });
 
   // Sized for a single small batch — generous headroom so a batch never
@@ -528,6 +613,40 @@ async function persistPlag(supa: ReturnType<typeof supabaseAdmin>, runId: string
     plag_matches: mcq.plag_matches,
     plag_attempts: mcq.plag_attempts,
   }).eq("run_id", runId).eq("index", index);
+}
+
+let warnedMissingColumns = false;
+
+/**
+ * Update columns that only exist after migration 003 (answer_check_*, runs.mode
+ * etc.). PostgREST returns an error in the response (it does not throw) when a
+ * column is missing; we swallow it so generation still completes before the
+ * migration is applied. The live status still streams over SSE either way.
+ */
+async function bestEffortUpdate(
+  supa: ReturnType<typeof supabaseAdmin>,
+  table: "runs" | "mcqs",
+  id: string | null,
+  values: Record<string, unknown>,
+  match?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    let q = supa.from(table).update(values);
+    if (id) q = q.eq("id", id);
+    if (match) for (const [k, v] of Object.entries(match)) q = q.eq(k, v as never);
+    const { error } = await q;
+    if (error && !warnedMissingColumns) {
+      warnedMissingColumns = true;
+      console.warn(
+        `[bestEffortUpdate] ${table} update skipped (apply migration 003 to persist verification fields): ${error.message}`,
+      );
+    }
+  } catch (e) {
+    if (!warnedMissingColumns) {
+      warnedMissingColumns = true;
+      console.warn(`[bestEffortUpdate] ${table} update threw: ${(e as Error).message}`);
+    }
+  }
 }
 
 function emitAndLog(
