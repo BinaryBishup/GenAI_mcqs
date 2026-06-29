@@ -17,6 +17,7 @@ export function isUsable(mcq: MCQ): boolean {
   if (mcq.plag_status === "flagged" || mcq.plag_status === "gave_up") return false;
   if (mcq.code_verified === false) return false;
   if (mcq.answer_check_status === "disagree" || mcq.answer_check_status === "uncertain") return false;
+  if (mcq.diversity_status === "duplicate") return false;
   return true;
 }
 
@@ -27,6 +28,7 @@ export function exclusionReason(mcq: MCQ): string | null {
   if (mcq.code_verified === false) return "code did not verify";
   if (mcq.answer_check_status === "disagree") return "answer-check disagreed with the key";
   if (mcq.answer_check_status === "uncertain") return "answer-check could not confirm the key";
+  if (mcq.diversity_status === "duplicate") return "too similar to a sibling variant";
   return null;
 }
 

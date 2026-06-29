@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { parseWorkbookBuffer, type SampleRow } from "@/lib/xls-parse";
 import { sanitizeSourceName, uniqueSourceFile } from "@/lib/sample-source";
+import { getUserTeam } from "@/lib/team";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,10 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "expected multipart/form-data" }, { status: 400 });
   }
+
+  // Upload into the signed-in user's team library (the "Local" banks).
+  const { team, name } = await getUserTeam(req);
+  if (!team) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
   const file = form.get("file");
   const topicRaw = String(form.get("topic") ?? "").trim();
@@ -71,9 +76,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Insert in chunks (Postgres parameter limits on big workbooks).
+  // Insert in chunks (Postgres parameter limits on big workbooks), stamping the team.
   for (let i = 0; i < rows.length; i += 200) {
-    const chunk = rows.slice(i, i + 200);
+    const chunk = rows.slice(i, i + 200).map((r) => ({ ...r, team, uploaded_by: name }));
     const { error } = await supa.from("samples").insert(chunk);
     if (error) {
       return NextResponse.json({ error: `insert failed: ${error.message}` }, { status: 500 });

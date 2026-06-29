@@ -2,6 +2,38 @@ import type {
   GenerateRequest, MCQ, PastRunSummary, SampleCatalog, SamplePreviewResult,
   SampleTopic, StreamEvent,
 } from "./types";
+import { supabaseBrowser } from "./supabase-browser";
+
+/** Bearer header for the current Supabase session, or {} when signed out. The
+ *  server reads the team off this token to scope every request. */
+// Shared in-flight refresh so concurrent callers (e.g. the dashboard poller,
+// which dev StrictMode double-mounts) don't race separate refreshSession calls
+// and invalidate each other's token — the cause of intermittent 401s.
+let refreshInFlight: ReturnType<ReturnType<typeof supabaseBrowser>["auth"]["refreshSession"]> | null = null;
+
+async function authHeader(): Promise<Record<string, string>> {
+  try {
+    const supa = supabaseBrowser();
+    const { data } = await supa.auth.getSession();
+    let session = data.session;
+    // The stored access token may be expired (tab idle past its 1h lifetime);
+    // getSession returns it as-is. Refresh when it's missing or within 60s of
+    // expiry, sharing one in-flight refresh across concurrent callers.
+    const expiringSoon = session?.expires_at ? session.expires_at * 1000 < Date.now() + 60_000 : !session;
+    if (expiringSoon) {
+      if (!refreshInFlight) {
+        refreshInFlight = supa.auth.refreshSession();
+        refreshInFlight.finally(() => { refreshInFlight = null; });
+      }
+      const refreshed = await refreshInFlight;
+      session = refreshed.data.session ?? session;
+    }
+    const token = session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
 
 /**
  * `fetch` with a small retry on transport-level failures. It only *throws* on
@@ -25,7 +57,7 @@ async function fetchWithRetry(input: RequestInfo | URL, init?: RequestInit, atte
 }
 
 export async function fetchCatalog(): Promise<SampleCatalog> {
-  const res = await fetchWithRetry("/api/samples", { cache: "no-store" });
+  const res = await fetchWithRetry("/api/samples", { cache: "no-store", headers: await authHeader() });
   if (!res.ok) throw new Error(`catalog failed: ${res.status}`);
   return res.json();
 }
@@ -49,7 +81,7 @@ export async function uploadSample(file: File, topic: string): Promise<UploadSam
   const form = new FormData();
   form.append("file", file);
   form.append("topic", topic);
-  const res = await fetchWithRetry("/api/samples/upload", { method: "POST", body: form });
+  const res = await fetchWithRetry("/api/samples/upload", { method: "POST", body: form, headers: await authHeader() });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error ?? `upload failed: ${res.status}`);
   return data as UploadSampleResult;
@@ -68,7 +100,7 @@ export async function previewSample(file: File, topic: string): Promise<SamplePr
 
 export async function fetchPastRuns(source?: string): Promise<{ count: number; runs: PastRunSummary[] }> {
   const url = source ? `/api/runs?source=${encodeURIComponent(source)}` : "/api/runs";
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: await authHeader() });
   if (!res.ok) throw new Error(`past-runs fetch failed: ${res.status}`);
   return res.json();
 }
@@ -116,6 +148,18 @@ export async function updateMcq(runId: string, index: number, mcq: MCQ): Promise
   return data.mcq as MCQ;
 }
 
+/** Regenerate / revise the inline SVG diagram for one MCQ (persisted). Returns the new SVG. */
+export async function regenMcqImage(runId: string, index: number, instruction?: string): Promise<string> {
+  const res = await fetch("/api/mcqs/image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ run_id: runId, index, instruction }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `image regen failed: ${res.status}`);
+  return data.image_svg as string;
+}
+
 /** Ask the model to modify one MCQ per a natural-language instruction (not persisted). */
 export async function aiModifyMcq(mcq: MCQ, instruction: string): Promise<MCQ> {
   const res = await fetch("/api/mcqs/modify", {
@@ -145,7 +189,7 @@ export function startGeneration(
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await authHeader()) },
         body: JSON.stringify(req),
         signal: ctrl.signal,
       });

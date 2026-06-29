@@ -3,7 +3,20 @@ export type MCQType = "general" | "code";
 export type Difficulty = "easy" | "medium" | "hard";
 export type Quality = "fast" | "balanced" | "highest";
 export type PlagStatus = "pending" | "unique" | "flagged" | "revamped" | "gave_up";
-export type RunStatus = "pending" | "generating" | "plagchecking" | "revamping" | "verifying" | "done" | "error";
+// "reviewing" is the simplified pipeline's single quality pass (replaces the old
+// plagchecking/revamping/verifying phases, which remain in the union only so
+// historical run rows still type-check).
+export type RunStatus = "pending" | "generating" | "reviewing" | "plagchecking" | "revamping" | "verifying" | "done" | "error";
+
+/** The four working teams; a profile belongs to exactly one. */
+export type Team = "HACK" | "Cognitive" | "Domain" | "Psychometric";
+export const TEAMS: Team[] = ["HACK", "Cognitive", "Domain", "Psychometric"];
+
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  team: Team;
+}
 
 /** Independent (non-code) correctness check verdict. */
 export type AnswerCheckStatus = "pending" | "agree" | "disagree" | "uncertain" | "skipped";
@@ -48,11 +61,19 @@ export interface MCQ {
   answer_check_index?: number | null;
   /** One-line rationale from the checker. */
   answer_check_notes?: string | null;
+  /** Sample row id this MCQ was cloned from (per-seed expansion). Null = scratch/blend. */
+  parent_sample_id?: string | null;
+  /** Sibling-diversity verdict for seeded variants: 'ok' or 'duplicate' (too similar, couldn't fix). */
+  diversity_status?: "ok" | "duplicate";
+  /** Inline SVG diagram (diagram-as-code), when the question needs a visual. */
+  image_svg?: string | null;
 }
 
 export interface GenerateRequest {
   count: number;
   topic: string;
+  /** Owning team — the run (and its questions) are scoped to it. */
+  team?: Team;
   difficulty: Difficulty;
   mcq_type: MCQType;
   languages: Language[];
@@ -73,10 +94,24 @@ export interface GenerateRequest {
    * factual claims in it. Defaults to true. Set false to skip the extra search.
    */
   grounding?: boolean;
+  /**
+   * Per-bank generation specs (sample mode). Each bank contributes `count`
+   * questions at `difficulty`, seeded ONLY from that bank's `difficulty`
+   * questions — so a "medium" request never draws easy/hard samples.
+   */
+  bank_specs?: BankSpec[];
+  /** Generate inline SVG diagrams (diagram-as-code) for questions that need a visual. */
+  create_images?: boolean;
   /** 'sample' = imitate sample files; 'scratch' = topic-only, no samples. */
   mode?: "sample" | "scratch";
   /** Scratch mode only: which question styles to produce. */
   question_kinds?: QuestionKind[];
+}
+
+export interface BankSpec {
+  file: string;
+  difficulty: Difficulty;
+  count: number;
 }
 
 export interface SampleCatalogItem {
@@ -85,9 +120,13 @@ export interface SampleCatalogItem {
   count: number;
   languages: Language[];
   difficulties: Difficulty[];
+  /** How many questions the bank has at each difficulty. */
+  by_difficulty: { easy: number; medium: number; hard: number };
   has_code: boolean;
   primary_type: MCQType;
   primary_language: Language | null;
+  /** Display name of whoever uploaded the bank (Local banks), or null. */
+  uploaded_by: string | null;
 }
 
 export interface SampleTopic {
@@ -108,6 +147,7 @@ export interface PastRunSummary {
   finished_at: string | null;
   error_message: string | null;
   sample_file_ids: string[];
+  team?: string | null;
 }
 
 export interface SampleTopicMCQ {

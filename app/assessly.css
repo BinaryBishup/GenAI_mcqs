@@ -1,0 +1,67 @@
+/* Assessly workspace — scoped styling. The design ships its own type + motion
+   system (Mulish / JetBrains Mono, navy palette) independent of the rest of the
+   app, so we scope it under .assessly-root to avoid leaking into other pages. */
+@import url("https://fonts.googleapis.com/css2?family=Mulish:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+.assessly-root {
+  font-family: "Mulish", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #3c4858;
+  height: 100vh;
+  width: 100%;
+  background: #f4f6f8;
+  overflow: hidden;
+}
+.assessly-root *,
+.assessly-root *::before,
+.assessly-root *::after {
+  box-sizing: border-box;
+}
+.assessly-root input,
+.assessly-root textarea,
+.assessly-root button {
+  font-family: inherit;
+}
+.assessly-root textarea {
+  resize: none;
+}
+.assessly-root ::placeholder {
+  color: #a6b0bb;
+}
+.assessly-root .mono {
+  font-family: "JetBrains Mono", monospace;
+}
+.assessly-root pre {
+  margin: 0;
+}
+
+@keyframes ax-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ax-drawerUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.ax-spin {
+  animation: ax-spin 0.8s linear infinite;
+}
+.ax-drawer {
+  animation: ax-drawerUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.assessly-root *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.assessly-root *::-webkit-scrollbar-thumb {
+  background: #d4dbe2;
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}

@@ -32,7 +32,7 @@ const LETTERS = ["A", "B", "C", "D", "E", "F"];
  *
  * Never throws: any failure returns "uncertain" so the pipeline keeps moving.
  */
-export async function checkAnswer(mcq: MCQ, groundingBlock?: string): Promise<AnswerCheckResult> {
+export async function checkAnswer(mcq: MCQ, groundingBlock?: string, modelOverride?: string): Promise<AnswerCheckResult> {
   // Code MCQs are verified by execution, not by an LLM re-read.
   if (mcq.type === "code") {
     return { status: "skipped", index: null, notes: "code MCQ — verified by execution path" };
@@ -63,11 +63,11 @@ export async function checkAnswer(mcq: MCQ, groundingBlock?: string): Promise<An
 
   try {
     const msg = await anthropic().messages.create({
-      // Use the balanced model as an independent checker (distinct from the
-      // generation model in the common AUTO/fast case), with low temperature.
-      model: env.modelFor("balanced"),
-      max_tokens: 300,
-      temperature: 0,
+      // Independent checker — defaults to balanced, but the pipeline passes the
+      // strongest model so it's a genuinely independent second opinion (not the
+      // generation model second-guessing itself), with low temperature.
+      model: modelOverride ?? env.modelFor("balanced"),
+      max_tokens: 1200,
       messages: [{ role: "user", content: prompt }],
     });
     const text = msg.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n");
@@ -113,5 +113,66 @@ export async function checkAnswer(mcq: MCQ, groundingBlock?: string): Promise<An
     };
   } catch (e) {
     return { status: "uncertain", index: null, notes: `check failed: ${(e as Error).message}` };
+  }
+}
+
+export interface ArbitrateResult {
+  /** The definitively-correct option index, or null if genuinely ambiguous/unsolvable. */
+  index: number | null;
+  /** True when more than one option is defensibly correct or the question is ill-posed. */
+  ambiguous: boolean;
+  /** A clean, final 1–2 sentence justification for the chosen answer. */
+  explanation: string;
+}
+
+/**
+ * Tie-breaker / arbiter. Two solvers disagreed on the correct option; this is a
+ * final, careful adjudication that shows its work, then commits to the single
+ * correct option — or declares the question ambiguous (no single defensible
+ * answer). Lets the pipeline RESTORE a correct question a fallible checker
+ * mis-flagged, FIX a genuinely wrong key, or flag a truly ill-posed item.
+ * Never throws.
+ */
+export async function arbitrate(mcq: MCQ, challengerIndex: number | null, modelOverride?: string): Promise<ArbitrateResult> {
+  if (!Array.isArray(mcq.options) || mcq.options.length < 2) {
+    return { index: mcq.correct_index, ambiguous: false, explanation: "" };
+  }
+  const optionsText = mcq.options.map((o, i) => `${LETTERS[i]}. ${o}`).join("\n");
+  const marked = LETTERS[mcq.correct_index] ?? "?";
+  const challenger = challengerIndex != null ? LETTERS[challengerIndex] ?? "?" : "?";
+  const prompt = [
+    "You are the final arbiter on a multiple-choice question. Two solvers disagreed:",
+    `  • Solver 1 (the author) marked option ${marked} correct.`,
+    `  • Solver 2 (an independent checker) chose option ${challenger}.`,
+    "Solve the question yourself, from scratch, carefully. Work through the arithmetic/logic STEP BY STEP and double-check it before deciding. Then commit to the SINGLE correct option.",
+    "If — and only if — more than one option is genuinely defensibly correct, or the question is ill-posed / has no single correct answer (e.g. an ambiguous 'overall loss' across a buy/sell/buyback chain), set ambiguous=true.",
+    "",
+    `Question:\n${mcq.question}`,
+    mcq.snippet?.code ? `\nCode:\n\`\`\`\n${mcq.snippet.code}\n\`\`\`` : "",
+    `\nOptions:\n${optionsText}`,
+    "",
+    "Put ALL of your step-by-step working in the \"work\" field. The \"explanation\" field must be a CLEAN, FINAL 1–2 sentence justification of the chosen option for a student — NO scratch work, NO 'let me recompute', NO hedging.",
+    'Respond with ONLY a JSON object: {"work": "<your full reasoning>", "correct": "A"|"B"|"C"|"D", "ambiguous": true|false, "explanation": "<clean final justification>"}',
+  ].filter(Boolean).join("\n");
+
+  try {
+    const msg = await anthropic().messages.create({
+      model: modelOverride ?? env.modelFor("highest"),
+      max_tokens: 1500,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text = msg.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n");
+    const parsed = JSON.parse(extractJson(text)) as { correct?: string; ambiguous?: boolean; explanation?: string; work?: string };
+    if (parsed.ambiguous === true) {
+      return { index: null, ambiguous: true, explanation: (parsed.explanation ?? "").slice(0, 300) };
+    }
+    const idx = LETTERS.indexOf(String(parsed.correct ?? "").trim().toUpperCase().slice(0, 1));
+    if (idx < 0 || idx >= mcq.options.length) {
+      return { index: null, ambiguous: true, explanation: "arbiter returned no valid option" };
+    }
+    return { index: idx, ambiguous: false, explanation: (parsed.explanation ?? "").slice(0, 300) };
+  } catch {
+    // Arbiter failed → don't destroy a possibly-correct question; trust the author.
+    return { index: mcq.correct_index, ambiguous: false, explanation: "" };
   }
 }

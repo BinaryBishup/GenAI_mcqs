@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./assessly.css";
 
 export const metadata: Metadata = {
-  title: "MCQ Gen AI",
+  title: "Assessly — Mercer | Mettl",
   description: "Generate, ground, plag-check, and verify original MCQs with Claude.",
 };
 

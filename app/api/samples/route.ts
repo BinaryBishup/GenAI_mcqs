@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getUserTeam } from "@/lib/team";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,20 +23,24 @@ function inferLanguageFromFilename(filename: string): string | null {
   return null;
 }
 
-/** Catalog: one row per source_file, with metadata aggregated. */
-export async function GET() {
+/** Catalog: one row per source_file, with metadata aggregated. Team-scoped. */
+export async function GET(req: NextRequest) {
   const supa = supabaseAdmin();
+
+  const { team } = await getUserTeam(req);
+  if (!team) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
   // Supabase caps a single select at 1000 rows; the samples table is larger, so
   // page through all rows (ordered by the PK for stable, non-overlapping ranges)
   // before aggregating. Otherwise banks outside the first 1000 rows — including
   // newly uploaded ones — silently vanish from the catalog.
   const PAGE = 1000;
-  const data: { source_file: string; topic: string; difficulty: string; type: string; language: string | null }[] = [];
+  const data: { source_file: string; topic: string; difficulty: string; type: string; language: string | null; uploaded_by: string | null }[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data: page, error } = await supa
       .from("samples")
-      .select("source_file,topic,difficulty,type,language")
+      .select("source_file,topic,difficulty,type,language,uploaded_by")
+      .eq("team", team)
       .order("id", { ascending: true })
       .range(from, from + PAGE - 1);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -51,7 +56,9 @@ export async function GET() {
     code_count: number;
     languages: Set<string>;
     difficulties: Set<string>;
+    by_difficulty: { easy: number; medium: number; hard: number };
     has_code: boolean;
+    uploaded_by: string | null;
   };
   const byFile = new Map<string, Agg>();
 
@@ -65,7 +72,9 @@ export async function GET() {
         code_count: 0,
         languages: new Set(),
         difficulties: new Set(),
+        by_difficulty: { easy: 0, medium: 0, hard: 0 },
         has_code: false,
+        uploaded_by: null,
       });
     }
     const e = byFile.get(f)!;
@@ -75,7 +84,12 @@ export async function GET() {
       e.has_code = true;
     }
     if (r.language) e.languages.add(String(r.language));
-    if (r.difficulty) e.difficulties.add(String(r.difficulty));
+    const d = String(r.difficulty ?? "").toLowerCase();
+    if (d === "easy" || d === "medium" || d === "hard") {
+      e.difficulties.add(d);
+      e.by_difficulty[d] += 1;
+    }
+    if (!e.uploaded_by && r.uploaded_by) e.uploaded_by = String(r.uploaded_by);
   }
 
   const items = [...byFile.values()]
@@ -99,9 +113,11 @@ export async function GET() {
         count: e.count,
         languages: [...e.languages].sort(),
         difficulties: [...e.difficulties].sort(),
+        by_difficulty: e.by_difficulty,
         has_code: e.has_code,
         primary_type,
         primary_language,
+        uploaded_by: e.uploaded_by,
       };
     });
 

@@ -71,6 +71,7 @@ Boundary note: the SAME code can yield either type — "What will this code retu
 - Questions must be NOVEL — paraphrase phrasing, change identifiers, change numeric values. Do not reproduce textbook questions verbatim.
 - correct_index is a 0-based int (0..3).
 - explanation is 1-2 sentences explaining why the correct answer is correct. Refer to options by their CONTENT (e.g., "the public setBalance method") — NEVER by position ("Option 0", "the first option"). The system shuffles option order after generation, so positional references in the explanation become wrong.
+- The explanation MUST be a CLEAN, FINAL justification. NEVER include working-out scratch, hedging, or self-correction ("Wait", "let me recalculate", "re-checking", "actually") — do your reasoning silently and state only the final, confident justification. The correct_index MUST point to the option whose CONTENT your explanation justifies; if they would disagree, recompute until they agree before emitting.
 - Vary which position you place the correct answer at. Do not put the correct answer at index 0 on most questions — distribute correct_index roughly uniformly across 0, 1, 2, 3 over the batch.
 - For SHAPE A only: snippet must be self-contained and produce a single deterministic stdout that, after .strip(), equals options[correct_index] exactly.
 - For SHAPE B: keep code in options short enough to read at a glance (≤ 15 lines). Use real fenced blocks with the language tag (\`\`\`java, \`\`\`python, etc.). Use the SAME language for all 4 option snippets in a given question.
@@ -449,6 +450,119 @@ export function buildUserPrompt(args: {
   ].filter(Boolean).join("\n");
 }
 
+/**
+ * Per-seed expansion ("item cloning"): produce `count` novel variants of ONE
+ * reference question. Each variant must keep the seed's concept, shape, type,
+ * and difficulty — but be clearly distinct from the reference AND from its
+ * siblings. Distribution across the bank is preserved because every variant
+ * inherits its seed's properties.
+ */
+export function buildVariantPrompt(args: {
+  seed: SampleForPrompt & { code?: string | null; language?: string | null };
+  count: number;
+  languages: Language[];
+  extraInstructions?: string;
+  negativePrompt?: string;
+  qualityRules?: string[];
+  groundingBlock?: string;
+  /** Sibling questions already produced for this seed — the new ones must differ from these. */
+  avoidQuestions?: string[];
+}): string {
+  const { seed } = args;
+  const seedType: MCQType = seed.type === "code" ? "code" : "general";
+  const shape = classifyShape(seed);
+  const rulesBlock = buildQualityRulesBlock(args.qualityRules ?? DEFAULT_RULE_IDS, seedType);
+  const langLine =
+    seedType === "code" && seed.language
+      ? `Keep the same language (${seed.language}) for the code in every variant.`
+      : seedType === "code" && args.languages.length > 0
+        ? `Languages allowed: ${args.languages.join(", ")}.`
+        : "";
+  const extra = args.extraInstructions?.trim()
+    ? `\nAdditional instructions from the user:\n${args.extraInstructions.trim()}`
+    : "";
+  const avoid = args.negativePrompt?.trim()
+    ? `\nAvoid the following:\n${args.negativePrompt.trim()}`
+    : "";
+  const ground = args.groundingBlock?.trim()
+    ? "GROUND YOUR FACTS — a <reference_material> block is provided above. Every factual claim, correct answer, and distractor must be consistent with it; do not assert anything it does not support."
+    : "";
+
+  const refLines: string[] = [
+    "<reference_question>",
+    `shape: ${shape}   (A=output / B=code-in-options / C=sentence-options)`,
+    `type: ${seed.type}`,
+    `topic: ${seed.topic}`,
+    `difficulty: ${seed.difficulty}`,
+  ];
+  if (seed.language) refLines.push(`language: ${seed.language}`);
+  refLines.push(`question (${wordCount(seed.question)} words): ${seed.question}`);
+  if (seed.code) {
+    refLines.push("code:");
+    refLines.push("```");
+    refLines.push(seed.code);
+    refLines.push("```");
+  }
+  seed.options.forEach((o, i) =>
+    refLines.push(`option ${i}${i === seed.correct_index ? " [CORRECT]" : ""} (${wordCount(o)} words${optionLooksLikeCode(o) ? ", CODE" : ""}): ${o}`),
+  );
+  refLines.push("</reference_question>");
+
+  const avoidBlock =
+    args.avoidQuestions && args.avoidQuestions.length > 0
+      ? [
+          "",
+          "Questions you have ALREADY produced for this reference — every new question MUST be clearly different from each of these (different scenario, values, and phrasing):",
+          ...args.avoidQuestions.map((q, i) => `  ${i + 1}. ${q}`),
+        ]
+      : [];
+
+  const stemW = wordCount(seed.question);
+  const optW = seed.options.map(wordCount);
+  const minO = Math.min(...optW);
+  const maxO = Math.max(...optW);
+  const avgO = Math.round(optW.reduce((a, b) => a + b, 0) / optW.length);
+  const shortOpts = maxO <= 4;
+  const longOpts = avgO >= 8;
+  const stemLo = Math.max(4, Math.round(stemW * 0.7));
+  const stemHi = Math.round(stemW * 1.3);
+  const optExamples = seed.options.slice(0, 2).map((o) => `"${o}"`).join(", ");
+
+  const instruction = [
+    `Generate ${args.count} NEW multiple-choice question${args.count === 1 ? "" : "s"} modelled on the reference question above.`,
+    "",
+    "LENGTH & STYLE — MATCH THE REFERENCE EXACTLY (HARD CONSTRAINT — violating this fails the task):",
+    `  - STEM: the reference stem is ${stemW} words. Your stem MUST be ${stemLo}–${stemHi} words. Do not add extra clauses, framing, or 'Select the correct option…' boilerplate unless the reference has it.`,
+    `  - OPTIONS: the reference options are ${minO}–${maxO} words each (avg ~${avgO}; e.g. ${optExamples}). EVERY option you write MUST be ${minO}–${maxO} words and the SAME grammatical form.${shortOpts ? " These are SHORT terms/noun-phrases — your options must be equally short. Long descriptive phrases or full sentences are WRONG here." : ""}${longOpts ? ` These are LONG, detailed options (~${avgO} words each) — your options MUST be equally long and fully detailed clauses/sentences. Do NOT compress them into short phrases; under-length options are WRONG here.` : ""}`,
+    "  - Mirror the reference's verbosity precisely: a terse reference → terse output; a wordy reference → wordy output. Never inflate a concise sample into a verbose question.",
+    "",
+    "DIVERSITY IS ALSO REQUIRED — the new questions must be genuinely different, not reskins of the reference:",
+    "  - Keep the SAME concept being tested, the SAME shape (A/B/C), the SAME type (general/code), and the SAME difficulty as the reference.",
+    "  - But make each variant clearly DISTINCT from the reference AND from one another — change the scenario/domain, the entities and names, the concrete values, the framing, and which option is correct.",
+    "  - Do NOT merely rename variables or tweak a number. A reader who saw the reference must not feel they are answering the same question again.",
+    langLine,
+    seed.code
+      ? "For SHAPE A code questions, each variant's snippet must produce a single deterministic stdout that equals its correct option after .strip()."
+      : "",
+    "",
+    ground,
+    "",
+    rulesBlock,
+    extra,
+    avoid,
+    ...avoidBlock,
+    "",
+    "Output: a raw JSON array of MCQ objects (same schema as the system instructions). First character '[', last character ']'. No ``` fences, no prose.",
+  ].filter(Boolean).join("\n");
+
+  return [
+    args.groundingBlock?.trim() ? args.groundingBlock.trim() : "",
+    refLines.join("\n"),
+    "",
+    instruction,
+  ].filter(Boolean).join("\n");
+}
+
 export function buildRevampPrompt(args: {
   mcq: {
     type: MCQType;
@@ -480,6 +594,107 @@ export function buildRevampPrompt(args: {
     "## Current MCQ",
     JSON.stringify(args.mcq, null, 2),
   ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Final review pass — a single strict reviewer that verifies every generated
+// MCQ is correct, on-concept, unique, and on-quality, returning a JSON verdict
+// array. Replaces the old grounding / plagiarism / Judge0 / diversity stack.
+// ---------------------------------------------------------------------------
+export const REVIEW_SYSTEM = `You are a strict multiple-choice question (MCQ) quality reviewer.
+You are given a set of SOURCE questions (the concept reference) and a set of GENERATED questions to audit.
+For each generated question you must judge correctness, concept match, uniqueness, difficulty, and option quality, then return a verdict.
+Any explanation you write or fix MUST be a clean, final, confident justification — never your reasoning process, never hedging ('Wait', 're-checking'), never option-position talk. The marked correct_index and the explanation must always agree.
+You output ONLY a raw JSON array — your FIRST character MUST be '[' and your LAST character MUST be ']'. No prose, no markdown, no \`\`\` fences. Any wrapping is a failure.`;
+
+export function buildReviewPrompt(args: {
+  generated: {
+    index: number;
+    question: string;
+    options: string[];
+    correct_index: number;
+    explanation?: string | null;
+    snippet?: { language: string; code: string } | null;
+    /** The exact format of the source sample this question was modelled on. */
+    sampleFormat?: { stemWords: number; optMin: number; optMax: number; example: string } | null;
+  }[];
+  sources: { question: string; options: string[]; correct_index: number }[];
+  difficulty: Difficulty;
+  mcqType: MCQType;
+  extraInstructions?: string;
+  negativePrompt?: string;
+}): string {
+  const sourceLines: string[] = ["<source_questions> (concept reference — the generated questions should test the SAME concepts at the SAME quality/difficulty)"];
+  if (args.sources.length === 0) {
+    sourceLines.push("[none provided]");
+  } else {
+    args.sources.forEach((s, i) => {
+      sourceLines.push("---");
+      sourceLines.push(`source ${i + 1}: ${s.question}`);
+      s.options.forEach((o, j) =>
+        sourceLines.push(`  option ${j}${j === s.correct_index ? " [correct]" : ""}: ${o}`),
+      );
+    });
+  }
+  sourceLines.push("</source_questions>");
+
+  const genLines: string[] = ["<generated_questions> (audit each — use the GLOBAL index shown)"];
+  for (const g of args.generated) {
+    genLines.push("---");
+    genLines.push(`index: ${g.index}`);
+    genLines.push(`question: ${g.question}`);
+    if (g.snippet?.code) {
+      genLines.push(`snippet (${g.snippet.language}):`);
+      genLines.push("```");
+      genLines.push(g.snippet.code);
+      genLines.push("```");
+    }
+    g.options.forEach((o, j) =>
+      genLines.push(`  option ${j}${j === g.correct_index ? " [marked correct]" : ""}: ${o}`),
+    );
+    genLines.push(`explanation: ${g.explanation ?? "(none)"}`);
+    if (g.sampleFormat) {
+      genLines.push(`TARGET FORMAT (the source sample this was modelled on): stem ≈ ${g.sampleFormat.stemWords} words; each option ${g.sampleFormat.optMin}–${g.sampleFormat.optMax} words (e.g. "${g.sampleFormat.example}").`);
+    }
+  }
+  genLines.push("</generated_questions>");
+
+  const extra = args.extraInstructions?.trim()
+    ? `\nUser instructions the questions were meant to follow:\n${args.extraInstructions.trim()}`
+    : "";
+  const avoid = args.negativePrompt?.trim()
+    ? `\nThe questions were meant to avoid:\n${args.negativePrompt.trim()}`
+    : "";
+
+  const instruction = [
+    `For EACH generated question (referenced by its GLOBAL index), judge in this order:`,
+    "",
+    "(a) CORRECTNESS & ANSWER↔EXPLANATION CONSISTENCY — re-derive the answer yourself (work the math/logic silently). Exactly one option may be defensibly correct. CRITICAL: `correct_index` MUST point to the option whose CONTENT is the genuinely correct answer, and the `explanation` MUST justify that SAME option — they must agree. If the marked answer is wrong, return verdict \"fix\" and set `correct_index` to the option whose text is correct (recount the options carefully — do not assume a position). If the answer and explanation disagree, that is an automatic \"fix\".",
+    "    EXPLANATION HYGIENE — when you return an explanation, it MUST be CLEAN and FINAL: 1–3 confident sentences justifying the correct option by its content. It must contain NO reasoning scratch, NO hedging or self-correction ('Wait', 're-checking', 'recalculating', 'actually', 'fixing'), and NO references to option positions/indices/'layout'. If an existing explanation contains any such meta-talk, that ALONE is a \"fix\" — rewrite it cleanly.",
+    `(b) CONCEPT MATCH & UNIQUENESS — it must test the SAME kind of concept as the source questions, and must NOT be a near-duplicate of any source question OR of another generated question in this set. If it is a duplicate or off-concept and cannot be salvaged by a light edit, return verdict \"reject\".`,
+    `(c) OPTION & DISTRACTOR QUALITY — held to a HIGH bar. Require ALL of:`,
+    "   • Exactly one defensibly-correct answer; every distractor is unambiguously WRONG yet TEMPTING — the kind a competent-but-mistaken candidate would actually pick, built from a SPECIFIC error (a named misconception, off-by-one, a skipped/duplicated step, a swapped formula, the wrong base/units, or a near-miss value). NEVER obvious filler, joke options, or absurd values.",
+    "   • PARALLEL form: all four options share grammar, structure, length (within ~20% character count) and level of detail — the correct one must not stand out by length, specificity, or phrasing.",
+    "   • Numeric distractors must cluster near the key and each correspond to an identifiable wrong method (forgot a step, wrong base, off by a factor) — not random far-off numbers.",
+    "   • No giveaways: no distinctive stem word echoed only in the key; no absolute qualifiers (always/never/all/none) used only in distractors; no \"All/None of the above\".",
+    "   • All four options are mutually DISTINCT — no two options expressing the same idea.",
+    `   Also match the target difficulty (${args.difficulty}). If ANY option is implausible, obviously wrong, off-topic, non-parallel, a giveaway, or duplicative — return verdict \"fix\" and REWRITE the weak option(s) into strong misconception-based distractors (return all 4 in \`options\`, keeping the correct answer and updating \`correct_index\` if its position changed).`,
+    "",
+    "(d) STYLE & LENGTH MATCH — each question MUST match its TARGET FORMAT (shown per question when available; otherwise the SOURCE questions' style). Compare the generated option word-lengths to the target: if they are markedly SHORTER than the target (e.g. target options are ~12 words but the question has 4-word options) OR markedly LONGER (target is 2-word terms but the question has long phrases), that is a DEFECT — return verdict \"fix\" and rewrite the options to the target word-length (stay parallel, distinct, and misconception-based; update `correct_index` if order changed). Match the stem length to the target too. The generated set must mirror the source bank's mix of short and long questions — do NOT flatten everything to one length.",
+    "",
+    "Be demanding on (c) and (d): weak distractors and bloated/over-long options are the two most common defects — prefer \"fix\" over \"pass\" whenever the options could be stronger OR shorter-to-match-source.",
+    "If a question passes all checks with no changes needed, return verdict \"pass\".",
+    "When you return \"fix\", include ONLY the fields you changed (any of `question`, `options` (exactly 4 strings), `correct_index` (0..3), `explanation`); the rest are kept as-is.",
+    "Always include a short `notes` string explaining your verdict.",
+    extra,
+    avoid,
+    "",
+    "Output a JSON array, one object per generated question, and NOTHING else:",
+    `[{"index": <global index>, "verdict": "pass"|"fix"|"reject", "correct_index": <0..3, when fixing>, "question": "<when fixing>", "options": ["..4.."], "explanation": "<when fixing>", "notes": "<short reason>"}]`,
+    "First character '[', last character ']'. No ``` fences, no prose.",
+  ].filter(Boolean).join("\n");
+
+  return [sourceLines.join("\n"), "", genLines.join("\n"), "", instruction].join("\n");
 }
 
 export function buildModifyPrompt(args: {

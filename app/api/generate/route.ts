@@ -1,6 +1,7 @@
 import { NextRequest, after } from "next/server";
 import { SSEStream } from "@/lib/sse";
 import { runWorkflow } from "@/lib/runner";
+import { getUserTeam } from "@/lib/team";
 import type { GenerateRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -26,6 +27,16 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  // Scope the run to the signed-in user's team (server-trusted, not client-set).
+  const { team } = await getUserTeam(req);
+  if (!team) {
+    return new Response(JSON.stringify({ error: "not authenticated" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  body.team = team;
 
   const stream = new SSEStream();
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getUserTeam } from "@/lib/team";
 
 export const runtime = "nodejs";
 
@@ -15,7 +16,7 @@ export const runtime = "nodejs";
  * is ~13min), so we never mark a genuinely-live run as stale.
  */
 const STALE_MS = 20 * 60 * 1000;
-const NON_TERMINAL = ["pending", "generating", "plagchecking", "revamping", "verifying"];
+const NON_TERMINAL = ["pending", "generating", "reviewing", "plagchecking", "revamping", "verifying"];
 
 /** Mark abandoned non-terminal runs as errored so the list reflects reality. */
 async function sweepStaleRuns(supa: ReturnType<typeof supabaseAdmin>) {
@@ -35,11 +36,15 @@ export async function GET(req: NextRequest) {
   const source = req.nextUrl.searchParams.get("source");
   const supa = supabaseAdmin();
 
+  const { team } = await getUserTeam(req);
+  if (!team) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
+
   await sweepStaleRuns(supa);
 
   let query = supa
     .from("runs")
-    .select("id,status,topic,difficulty,mcq_type,count,quality,started_at,finished_at,error_message,sample_file_ids")
+    .select("id,status,topic,difficulty,mcq_type,count,quality,started_at,finished_at,error_message,sample_file_ids,team")
+    .eq("team", team)
     .order("started_at", { ascending: false })
     .limit(100);
 
@@ -65,6 +70,7 @@ export async function GET(req: NextRequest) {
       finished_at: r.finished_at,
       error_message: r.error_message,
       sample_file_ids: r.sample_file_ids,
+      team: r.team,
     })),
   });
 }
