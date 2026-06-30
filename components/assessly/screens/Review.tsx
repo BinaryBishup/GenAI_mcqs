@@ -14,6 +14,7 @@ import { HBtn, HInput, HTextarea, Spinner } from "../ui";
 import { IconCheck, IconInfo, IconPencil, IconSpark, IconWarn, IconX, IconXCircle } from "../icons";
 import { useAssessly } from "../store";
 import { aiModifyMcq, fetchRun, fetchRunEvents, fetchTopic, regenMcqImage, updateMcq } from "@/lib/api";
+import { downloadMCQs } from "@/lib/download";
 import type { Difficulty, MCQ, PastRunSummary } from "@/lib/types";
 
 type ReviewStatus = "pending" | "approved" | "rejected" | "duplicate";
@@ -159,9 +160,21 @@ export function Review() {
         toast("Finalised to bank");
         go("finalised");
       },
+      onExport: () => {
+        const approved = items.filter((i) => i.status === "approved").map((i) => i.mcq);
+        const list = approved.length
+          ? approved
+          : items.filter((i) => i.status !== "rejected" && i.status !== "duplicate").map((i) => i.mcq);
+        if (!list.length) {
+          toast("No approved questions to export");
+          return;
+        }
+        downloadMCQs(list, "mettl", meta.topic || "Generated", { includeFlagged: true });
+        toast(`Exported ${list.length} question${list.length > 1 ? "s" : ""} (Mettl .xls)`);
+      },
     });
     return () => setReviewBar(null);
-  }, [reviewRunId, meta, counts.approved, setReviewBar, markFinalised, go, toast]);
+  }, [reviewRunId, meta, items, counts.approved, setReviewBar, markFinalised, go, toast]);
 
   // -------- load sample-bank candidates when the too-similar modal opens --------
   const sampleKey = (meta?.sample_file_ids ?? []).join("|");

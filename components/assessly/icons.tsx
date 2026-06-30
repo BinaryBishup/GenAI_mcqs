@@ -129,6 +129,11 @@ export const IconShift = (p: P) => (
     <path d="M9 14V4M5 7l4-3 4 3" />
   </S>
 );
+export const IconDownload = (p: P) => (
+  <S sw={1.8} {...p}>
+    <path d="M9 3v9M5.5 8.5L9 12l3.5-3.5M3.5 15h11" />
+  </S>
+);
 export const IconClock = (p: P) => (
   <S sw={1.8} {...p}>
     <circle cx="9" cy="9" r="6.5" />

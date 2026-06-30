@@ -119,6 +119,7 @@ export interface ReviewBar {
   approved: number;
   onRegenerate: () => void;
   onFinalise: () => void;
+  onExport: () => void;
 }
 
 const AssesslyCtx = createContext<Ctx | null>(null);

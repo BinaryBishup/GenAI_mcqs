@@ -2,7 +2,7 @@
 
 import { C, diffStyle, titleCase } from "./theme";
 import { HBtn } from "./ui";
-import { IconChevLeft, IconLock, IconLoop, IconPencil, IconSpark, IconCheck } from "./icons";
+import { IconChevLeft, IconDownload, IconLock, IconLoop, IconPencil, IconSpark, IconCheck } from "./icons";
 import { useAssessly } from "./store";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -93,6 +93,15 @@ export function Topbar() {
 
       {screen === "review" && reviewBar && (
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+          <HBtn
+            onClick={reviewBar.onExport}
+            title="Download approved questions as a Mettl bulk-upload .xls"
+            style={{ height: 40, padding: "0 15px", background: "#fff", border: "1.5px solid #E3E8ED", color: C.slate, borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}
+            hover={{ borderColor: "#C8D2DC" }}
+          >
+            <IconDownload s={15} />
+            Export .xls
+          </HBtn>
           <HBtn
             onClick={reviewBar.onRegenerate}
             style={{ height: 40, padding: "0 15px", background: "#fff", border: "1.5px solid #E3E8ED", color: C.slate, borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}

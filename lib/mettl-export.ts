@@ -63,12 +63,16 @@ function buildCodeSnippetIframe(language: Language, code: string): string {
 
 function buildQuestionText(mcq: MCQ): string {
   // Wrap question in a <div> for Mettl's rich-text editor. Append the
-  // codesnippet iframe for code MCQs (matches the format Mettl exports).
-  const stem = `<div>${escapeHtml(mcq.question)}</div>`;
+  // codesnippet iframe for code MCQs, and the inline SVG diagram (if any) so
+  // image-based questions keep their figure in Mettl's rich-text body.
+  let html = `<div>${escapeHtml(mcq.question)}</div>`;
   if (mcq.snippet?.code && mcq.type === "code") {
-    return stem + buildCodeSnippetIframe(mcq.snippet.language, mcq.snippet.code);
+    html += buildCodeSnippetIframe(mcq.snippet.language, mcq.snippet.code);
   }
-  return stem;
+  if (mcq.image_svg) {
+    html += `<div>${mcq.image_svg}</div>`;
+  }
+  return html;
 }
 
 function escapeHtml(s: string): string {
