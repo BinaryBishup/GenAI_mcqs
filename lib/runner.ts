@@ -657,15 +657,22 @@ async function generateImages(
       const i = nextIdx++;
       if (i >= mcqs.length) return;
       let svg: string | null = null;
-      try {
-        svg = await generateDiagram({
-          question: mcqs[i].question,
-          options: mcqs[i].options,
-          difficulty: req.difficulty,
-          model,
-        });
-      } catch {
-        /* best-effort: never fail the run on a diagram */
+      // The user explicitly asked for images and generation built every
+      // question around a figure, so draw one for each — never decide NONE.
+      // A null here means a transient model/parse miss; retry once.
+      for (let attempt = 0; attempt < 2 && !svg; attempt++) {
+        try {
+          svg = await generateDiagram({
+            question: mcqs[i].question,
+            options: mcqs[i].options,
+            difficulty: req.difficulty,
+            model,
+            force: true,
+            instruction: req.extra_prompt?.trim() || undefined,
+          });
+        } catch {
+          /* best-effort: never fail the run on a diagram */
+        }
       }
       if (svg) {
         mcqs[i].image_svg = svg;
@@ -921,6 +928,7 @@ async function generateBatch(
     mode: req.mode ?? "sample",
     questionKinds: req.question_kinds,
     sampleTypeHint: detectSampleType(req.sample_files),
+    visualMode: (req.mode ?? "sample") === "scratch" && !!req.create_images,
   });
 
   // Sized for a single small batch — generous headroom so a batch never

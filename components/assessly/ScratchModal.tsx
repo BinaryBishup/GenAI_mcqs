@@ -128,7 +128,7 @@ export function ScratchModal() {
                 </div>
               </div>
               <div onClick={() => setImages((v) => !v)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, cursor: "pointer", paddingTop: 2 }}>
-                <div><div style={{ fontSize: 12.5, fontWeight: 700, color: C.slate }}>Create images</div><div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>Diagrams where useful</div></div>
+                <div><div style={{ fontSize: 12.5, fontWeight: 700, color: C.slate }}>Create images</div><div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>Builds image-based questions with diagrams</div></div>
                 <div style={{ width: 42, height: 24, borderRadius: 100, background: images ? C.navy : "#D4DBE2", position: "relative", transition: ".15s", flexShrink: 0 }}><div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: images ? 21 : 3, transition: ".15s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} /></div>
               </div>
             </div>

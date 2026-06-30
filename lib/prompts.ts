@@ -369,6 +369,8 @@ export function buildUserPrompt(args: {
   questionKinds?: QuestionKind[];
   /** Sample mode: detected Application/Analysis type of the source samples, if known. */
   sampleTypeHint?: QuestionKind | null;
+  /** When set, every question must be built around a diagram (image-based set). */
+  visualMode?: boolean;
 }): string {
   const langs = args.mcqType === "code" && args.languages.length > 0
     ? `Languages allowed: ${args.languages.join(", ")}. Pick one language per question; vary across the set.`
@@ -419,6 +421,18 @@ export function buildUserPrompt(args: {
         "PATTERN VARIETY ACROSS THE BATCH — when the same source file gives you many samples, those samples cover several distinct question patterns (definition lookup, scenario→service, troubleshooting, comparison, true-statement, etc.). DO NOT pick one pattern and replicate it across all your generated MCQs. Spread your output across the different patterns visible in the samples, in roughly the proportions they appear. Vary scenarios (industries, use cases), entity names, and concepts under test from question to question.",
       ];
 
+  const visualBlock = args.visualMode
+    ? [
+        "",
+        "VISUAL / IMAGE QUESTIONS — TOP PRIORITY (overrides shape/variety rules): EVERY question MUST be built around a figure that will be rendered next to it.",
+        "  - Each question must REQUIRE reading a diagram to answer: a binary tree / graph / linked list to trace, a flowchart or process to follow, a network or system-architecture topology, a geometry figure, or a labelled chart/table.",
+        "  - FULLY SPECIFY the figure inside the stem in words — every node value, edge, connection, step, label, or coordinate — so the question is answerable from the text alone and the correct answer is unambiguous. The rendered diagram is a faithful picture of exactly what the stem describes; it must add NO information the stem omits.",
+        "  - Phrase the stem to reference the figure explicitly (e.g. 'The binary search tree below contains the keys …', 'Trace the flowchart shown …', 'In the network topology below, host A connects to …').",
+        "  - Do NOT write questions answerable without a figure (no plain definitions, no pure text recall, no 'what is the time complexity' lookups).",
+        "  - Vary the figure KIND across the set (trees, graphs, flowcharts, topologies, geometry, charts) — do not draw the same diagram type every time.",
+      ]
+    : [];
+
   const instruction = [
     `Generate ${args.count} novel MCQs.`,
     `Topic: ${args.topic}`,
@@ -429,6 +443,7 @@ export function buildUserPrompt(args: {
     langs,
     "",
     ...ground,
+    ...visualBlock,
     ...shapeBlock,
     ...typeBlock,
     "",
