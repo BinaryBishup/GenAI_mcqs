@@ -142,6 +142,9 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
       sample_file_ids: req.sample_files,
       samples_per_file: req.samples_per_file,
       max_revamp_attempts: req.max_revamp_attempts,
+      // Persist the user's prompts so the review screen can show what was asked.
+      extra_prompt: req.extra_prompt?.trim() || null,
+      negative_prompt: req.negative_prompt?.trim() || null,
     })
     .select()
     .single();

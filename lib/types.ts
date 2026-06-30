@@ -148,6 +148,10 @@ export interface PastRunSummary {
   error_message: string | null;
   sample_file_ids: string[];
   team?: string | null;
+  /** The user's free-form prompt / additional instructions, if any. */
+  extra_prompt?: string | null;
+  /** The user's negative ("avoid") prompt, if any. */
+  negative_prompt?: string | null;
 }
 
 export interface SampleTopicMCQ {

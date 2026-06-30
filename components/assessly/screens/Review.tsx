@@ -444,7 +444,7 @@ export function Review() {
               </span>
               <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".3px", color: "#4C8A28" }}>ADDITIONAL PROMPT</span>
             </div>
-            <div style={{ fontSize: 12.5, color: C.slate, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>—</div>
+            <div style={{ fontSize: 12.5, color: C.slate, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{meta?.extra_prompt?.trim() || meta?.topic || "—"}</div>
           </div>
           <div style={{ border: "1px solid #F2D3D5", background: "#FDF4F4", borderRadius: 11, padding: "12px 13px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
@@ -455,7 +455,7 @@ export function Review() {
               </span>
               <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".3px", color: "#C0454B" }}>NEGATIVE PROMPT</span>
             </div>
-            <div style={{ fontSize: 12.5, color: C.slate, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>—</div>
+            <div style={{ fontSize: 12.5, color: C.slate, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{meta?.negative_prompt?.trim() || "—"}</div>
           </div>
         </div>
 
