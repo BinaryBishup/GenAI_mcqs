@@ -14,7 +14,7 @@ import { HBtn, HInput, HTextarea, Spinner } from "../ui";
 import { IconCheck, IconInfo, IconPencil, IconSpark, IconWarn, IconX, IconXCircle } from "../icons";
 import { useAssessly } from "../store";
 import { aiModifyMcq, fetchRun, fetchRunEvents, fetchTopic, regenMcqImage, updateMcq } from "@/lib/api";
-import { downloadMCQs } from "@/lib/download";
+import { downloadMCQs, downloadQuestionsPdf } from "@/lib/download";
 import type { Difficulty, MCQ, PastRunSummary } from "@/lib/types";
 
 type ReviewStatus = "pending" | "approved" | "rejected" | "duplicate";
@@ -150,6 +150,14 @@ export function Review() {
       setReviewBar(null);
       return;
     }
+    // The set we export: approved questions, or (if none marked) everything not
+    // rejected/duplicate — so an un-triaged set still exports sensibly.
+    const exportList = () => {
+      const approved = items.filter((i) => i.status === "approved").map((i) => i.mcq);
+      return approved.length
+        ? approved
+        : items.filter((i) => i.status !== "rejected" && i.status !== "duplicate").map((i) => i.mcq);
+    };
     setReviewBar({
       title: meta.topic || "Untitled set",
       difficulty: meta.difficulty,
@@ -161,16 +169,18 @@ export function Review() {
         go("finalised");
       },
       onExport: () => {
-        const approved = items.filter((i) => i.status === "approved").map((i) => i.mcq);
-        const list = approved.length
-          ? approved
-          : items.filter((i) => i.status !== "rejected" && i.status !== "duplicate").map((i) => i.mcq);
-        if (!list.length) {
-          toast("No approved questions to export");
-          return;
-        }
+        const list = exportList();
+        if (!list.length) { toast("No approved questions to export"); return; }
         downloadMCQs(list, "mettl", meta.topic || "Generated", { includeFlagged: true });
-        toast(`Exported ${list.length} question${list.length > 1 ? "s" : ""} (Mettl .xls)`);
+        toast(`Exported ${list.length} question${list.length > 1 ? "s" : ""} (Mettl .xlsx)`);
+      },
+      onExportPdf: (withAnswers: boolean) => {
+        const list = exportList();
+        if (!list.length) { toast("No approved questions to export"); return; }
+        toast("Building PDF…");
+        downloadQuestionsPdf(list, meta.topic || "Generated", withAnswers)
+          .then(() => toast(`Exported PDF ${withAnswers ? "with answers" : "(questions only)"}`))
+          .catch(() => toast("PDF export failed"));
       },
     });
     return () => setReviewBar(null);

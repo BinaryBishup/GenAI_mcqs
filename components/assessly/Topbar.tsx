@@ -1,9 +1,47 @@
 "use client";
 
+import { useState } from "react";
 import { C, diffStyle, titleCase } from "./theme";
-import { HBtn } from "./ui";
+import { HBtn, HBox } from "./ui";
 import { IconChevLeft, IconDownload, IconLock, IconLoop, IconPencil, IconSpark, IconCheck } from "./icons";
-import { useAssessly } from "./store";
+import { useAssessly, type ReviewBar } from "./store";
+
+function ExportMenu({ bar }: { bar: ReviewBar }) {
+  const [open, setOpen] = useState(false);
+  const item = (label: string, sub: string, onClick: () => void) => (
+    <HBox
+      onClick={() => { onClick(); setOpen(false); }}
+      style={{ display: "flex", flexDirection: "column", gap: 1, padding: "9px 11px", borderRadius: 8, cursor: "pointer" }}
+      hover={{ background: "#F4F7FC" }}
+    >
+      <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{label}</span>
+      <span style={{ fontSize: 11, color: C.muted }}>{sub}</span>
+    </HBox>
+  );
+  return (
+    <div style={{ position: "relative" }}>
+      <HBtn
+        onClick={() => setOpen((o) => !o)}
+        title="Download the reviewed questions"
+        style={{ height: 40, padding: "0 15px", background: "#fff", border: "1.5px solid #E3E8ED", color: C.slate, borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}
+        hover={{ borderColor: "#C8D2DC" }}
+      >
+        <IconDownload s={15} />
+        Export
+      </HBtn>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+          <div style={{ position: "absolute", top: 46, right: 0, zIndex: 50, background: "#fff", border: "1px solid #E6EBF0", borderRadius: 12, boxShadow: "0 14px 34px rgba(16,24,40,.16)", minWidth: 236, padding: 6 }}>
+            {item("Mettl bulk upload", "Excel .xlsx — ready to import", bar.onExport)}
+            {item("PDF — with answers", "Question paper + answer key", () => bar.onExportPdf(true))}
+            {item("PDF — questions only", "Clean question paper", () => bar.onExportPdf(false))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: "Team workspace", subtitle: "Generate, review and finalise question banks for your team." },
@@ -93,15 +131,7 @@ export function Topbar() {
 
       {screen === "review" && reviewBar && (
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-          <HBtn
-            onClick={reviewBar.onExport}
-            title="Download approved questions as a Mettl bulk-upload .xls"
-            style={{ height: 40, padding: "0 15px", background: "#fff", border: "1.5px solid #E3E8ED", color: C.slate, borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}
-            hover={{ borderColor: "#C8D2DC" }}
-          >
-            <IconDownload s={15} />
-            Export .xls
-          </HBtn>
+          <ExportMenu bar={reviewBar} />
           <HBtn
             onClick={reviewBar.onRegenerate}
             style={{ height: 40, padding: "0 15px", background: "#fff", border: "1.5px solid #E3E8ED", color: C.slate, borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}

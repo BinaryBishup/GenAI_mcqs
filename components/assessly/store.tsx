@@ -120,6 +120,7 @@ export interface ReviewBar {
   onRegenerate: () => void;
   onFinalise: () => void;
   onExport: () => void;
+  onExportPdf: (withAnswers: boolean) => void;
 }
 
 const AssesslyCtx = createContext<Ctx | null>(null);

@@ -145,7 +145,9 @@ export function buildMettlWorkbook(mcqs: MCQ[], opts: MettlExportOptions = {}): 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, sheet, "MCQ");
 
-  // Mettl reads .xls (BIFF8) by default. We emit .xls to match the template
-  // extension. type:"array" returns an ArrayBuffer which a Blob accepts directly.
-  return XLSX.write(wb, { type: "array", bookType: "xls" }) as ArrayBuffer;
+  // Emit .xlsx (OOXML), NOT .xls (BIFF8): SheetJS's BIFF8 writer hard-truncates
+  // every text cell to 255 chars, which cut long question stems / explanations
+  // mid-sentence. .xlsx has no such limit; Mettl's bulk upload accepts it.
+  // type:"array" returns an ArrayBuffer which a Blob accepts directly.
+  return XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
 }
