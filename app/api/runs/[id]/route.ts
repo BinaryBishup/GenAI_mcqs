@@ -38,6 +38,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       answer_check_notes: m.answer_check_notes ?? null,
       parent_sample_id: m.parent_sample_id ?? null,
       diversity_status: m.diversity_status ?? undefined,
+      review_status: m.review_status ?? null,
     })),
   });
 }

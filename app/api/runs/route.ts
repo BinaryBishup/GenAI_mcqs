@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 
   let query = supa
     .from("runs")
-    .select("id,status,topic,difficulty,mcq_type,count,quality,started_at,finished_at,error_message,sample_file_ids,team")
+    .select("id,status,topic,difficulty,mcq_type,count,quality,started_at,finished_at,error_message,sample_file_ids,team,finalised_at,finalised_by,published_at,published_by")
     .eq("team", team)
     .order("started_at", { ascending: false })
     .limit(100);
@@ -71,6 +71,10 @@ export async function GET(req: NextRequest) {
       error_message: r.error_message,
       sample_file_ids: r.sample_file_ids,
       team: r.team,
+      finalised_at: r.finalised_at ?? null,
+      finalised_by: r.finalised_by ?? null,
+      published_at: r.published_at ?? null,
+      published_by: r.published_by ?? null,
     })),
   });
 }

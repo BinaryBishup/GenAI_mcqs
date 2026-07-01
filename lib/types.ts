@@ -67,6 +67,8 @@ export interface MCQ {
   diversity_status?: "ok" | "duplicate";
   /** Inline SVG diagram (diagram-as-code), when the question needs a visual. */
   image_svg?: string | null;
+  /** Persisted human review decision (null = not yet reviewed → derive default). */
+  review_status?: "pending" | "approved" | "rejected" | "duplicate" | null;
 }
 
 export interface GenerateRequest {
@@ -152,6 +154,24 @@ export interface PastRunSummary {
   extra_prompt?: string | null;
   /** The user's negative ("avoid") prompt, if any. */
   negative_prompt?: string | null;
+  /** Lifecycle flags — set when the run is finalised / published to Admin. */
+  finalised_at?: string | null;
+  finalised_by?: string | null;
+  published_at?: string | null;
+  published_by?: string | null;
+}
+
+/** One published set in the shared Admin inventory. */
+export interface AdminBank {
+  id: string;
+  topic: string;
+  team: string | null;
+  difficulty: Difficulty;
+  mcq_type: MCQType;
+  published_at: string | null;
+  published_by: string | null;
+  count: number;
+  questions: MCQ[];
 }
 
 export interface SampleTopicMCQ {

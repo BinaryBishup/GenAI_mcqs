@@ -1,5 +1,5 @@
 import type {
-  GenerateRequest, MCQ, PastRunSummary, SampleCatalog, SamplePreviewResult,
+  AdminBank, GenerateRequest, MCQ, PastRunSummary, SampleCatalog, SamplePreviewResult,
   SampleTopic, StreamEvent,
 } from "./types";
 import { supabaseBrowser } from "./supabase-browser";
@@ -158,6 +158,53 @@ export async function regenMcqImage(runId: string, index: number, instruction?: 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error ?? `image regen failed: ${res.status}`);
   return data.image_svg as string;
+}
+
+/** Persist one reviewer's decision for a question (approved/rejected/duplicate/pending). */
+export async function setMcqReview(
+  runId: string,
+  index: number,
+  status: "pending" | "approved" | "rejected" | "duplicate",
+): Promise<void> {
+  const res = await fetch(`/api/runs/${runId}/review`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ index, status }),
+  });
+  if (!res.ok) throw new Error(`review save failed: ${res.status}`);
+}
+
+/** Mark a run finalised (or undo). */
+export async function finaliseRun(runId: string, undo = false): Promise<void> {
+  const res = await fetch(`/api/runs/${runId}/finalise`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ undo }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d?.error ?? `finalise failed: ${res.status}`);
+  }
+}
+
+/** Publish a finalised run to the shared Admin inventory (or undo). */
+export async function publishRun(runId: string, undo = false): Promise<void> {
+  const res = await fetch(`/api/runs/${runId}/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ undo }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d?.error ?? `publish failed: ${res.status}`);
+  }
+}
+
+/** The shared Admin inventory: published sets across all teams. */
+export async function fetchAdminInventory(): Promise<{ count: number; banks: AdminBank[] }> {
+  const res = await fetch("/api/banks/admin", { headers: await authHeader() });
+  if (!res.ok) throw new Error(`admin inventory fetch failed: ${res.status}`);
+  return res.json();
 }
 
 /** Ask the model to modify one MCQ per a natural-language instruction (not persisted). */

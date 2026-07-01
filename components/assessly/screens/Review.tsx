@@ -13,7 +13,7 @@ import { C, STAGES, optView, stageIndex, stageView, timeAgo } from "../theme";
 import { HBtn, HInput, HTextarea, Spinner } from "../ui";
 import { IconCheck, IconInfo, IconPencil, IconSpark, IconWarn, IconX, IconXCircle } from "../icons";
 import { useAssessly } from "../store";
-import { aiModifyMcq, fetchRun, fetchRunEvents, fetchTopic, regenMcqImage, updateMcq } from "@/lib/api";
+import { aiModifyMcq, fetchRun, fetchRunEvents, fetchTopic, regenMcqImage, setMcqReview, updateMcq } from "@/lib/api";
 import { downloadMCQs, downloadQuestionsPdf } from "@/lib/download";
 import type { Difficulty, MCQ, PastRunSummary } from "@/lib/types";
 
@@ -111,7 +111,8 @@ export function Review() {
           mcqs.map((mcq, i) => ({
             index: i,
             mcq,
-            status: defaultStatus(mcq),
+            // Persisted human decision wins; otherwise derive a sensible default.
+            status: (mcq.review_status as ReviewStatus | null) ?? defaultStatus(mcq),
             rejectReason: "",
             dupNote: "",
             dupMatches: [],
@@ -163,8 +164,8 @@ export function Review() {
       difficulty: meta.difficulty,
       approved: counts.approved,
       onRegenerate: () => toast("Regeneration queued"),
-      onFinalise: () => {
-        markFinalised(reviewRunId);
+      onFinalise: async () => {
+        await markFinalised(reviewRunId);
         toast("Finalised to bank");
         go("finalised");
       },
@@ -239,15 +240,25 @@ export function Review() {
     setItems((prev) => prev.map((it) => (it.index === idx ? fn(it) : it)));
   }, []);
 
+  // Persist a reviewer decision (optimistic — the UI already updated). Silent on
+  // failure; the next poll/reopen reconciles from the server.
+  const persistReview = useCallback((idx: number, status: ReviewStatus) => {
+    if (!reviewRunId) return;
+    setMcqReview(reviewRunId, idx, status).catch(() => {});
+  }, [reviewRunId]);
+
   const onApprove = useCallback(
     (idx: number) => {
+      const cur = items.find((i) => i.index === idx);
+      const next: ReviewStatus = cur?.status === "approved" ? "pending" : "approved";
       patch(idx, (it) =>
-        it.status === "approved"
+        next === "pending"
           ? { ...it, status: "pending" }
           : { ...it, status: "approved", rejectReason: "", dupNote: "", dupMatches: [] },
       );
+      persistReview(idx, next);
     },
-    [patch],
+    [items, patch, persistReview],
   );
 
   const openEdit = useCallback((it: ReviewItem) => {
@@ -312,9 +323,10 @@ export function Review() {
   const confirmReject = useCallback(() => {
     if (rejectIdx === null) return;
     patch(rejectIdx, (it) => ({ ...it, status: "rejected", rejectReason: rejectReason.trim() }));
+    persistReview(rejectIdx, "rejected");
     setRejectOpen(false);
     toast("Question rejected");
-  }, [rejectIdx, rejectReason, patch, toast]);
+  }, [rejectIdx, rejectReason, patch, persistReview, toast]);
 
   const confirmDup = useCallback(() => {
     if (dupIdx === null || (dupSel.size === 0 && bankSel.size === 0)) return;
@@ -330,9 +342,10 @@ export function Review() {
       .filter((r): r is BankRow => !!r)
       .map((r) => ({ label: "Bank · " + r.difficulty, text: r.question }));
     patch(dupIdx, (it) => ({ ...it, status: "duplicate", dupMatches: [...genMatches, ...bankMatches] }));
+    persistReview(dupIdx, "duplicate");
     setDupOpen(false);
     toast("Flagged as too similar");
-  }, [dupIdx, dupSel, bankSel, bankRows, items, patch, toast]);
+  }, [dupIdx, dupSel, bankSel, bankRows, items, patch, persistReview, toast]);
 
   // demoted (rejected / duplicate) cards sort to the bottom, stable otherwise
   const sorted = useMemo(() => {

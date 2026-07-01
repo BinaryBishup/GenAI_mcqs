@@ -8,11 +8,13 @@
 // catalog, and the client-only "finalised / shifted to admin" flags (which the
 // backend has no column for).
 
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   fetchCatalog,
   fetchPastRuns,
+  finaliseRun,
+  publishRun,
   startGeneration,
 } from "@/lib/api";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -44,25 +46,6 @@ export type Screen =
   | "banks"
   | "bank"
   | "review";
-
-const LS_FINAL = "assessly.finalised";
-const LS_PUB = "assessly.published";
-
-function loadSet(key: string): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    return new Set(JSON.parse(localStorage.getItem(key) || "[]"));
-  } catch {
-    return new Set();
-  }
-}
-function saveSet(key: string, set: Set<string>) {
-  try {
-    localStorage.setItem(key, JSON.stringify([...set]));
-  } catch {
-    /* ignore quota / private mode */
-  }
-}
 
 interface Ctx {
   // auth
@@ -148,8 +131,17 @@ export function AssesslyProvider({ children }: { children: React.ReactNode }) {
   const [catalog, setCatalog] = useState<SampleCatalogItem[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
 
-  const [finalisedIds, setFinalisedIds] = useState<Set<string>>(new Set());
-  const [publishedIds, setPublishedIds] = useState<Set<string>>(new Set());
+  // Finalised / published are now server-side lifecycle flags on the run row;
+  // derive the id sets from the polled runs list so every screen agrees and the
+  // state is shared across users/devices (no localStorage).
+  const finalisedIds = useMemo(
+    () => new Set(runs.filter((r) => r.finalised_at).map((r) => r.id)),
+    [runs],
+  );
+  const publishedIds = useMemo(
+    () => new Set(runs.filter((r) => r.published_at).map((r) => r.id)),
+    [runs],
+  );
 
   const [genOpen, setGenOpen] = useState(false);
   const [scratchOpen, setScratchOpen] = useState(false);
@@ -158,12 +150,6 @@ export function AssesslyProvider({ children }: { children: React.ReactNode }) {
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeStreams = useRef<Array<() => void>>([]);
-
-  // hydrate client-only flags
-  useEffect(() => {
-    setFinalisedIds(loadSet(LS_FINAL));
-    setPublishedIds(loadSet(LS_PUB));
-  }, []);
 
   // Supabase session: restore on mount and keep in sync with auth changes.
   useEffect(() => {
@@ -268,22 +254,22 @@ export function AssesslyProvider({ children }: { children: React.ReactNode }) {
     setUserMenuOpen(false);
   }, []);
 
-  const markFinalised = useCallback((id: string) => {
-    setFinalisedIds((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      saveSet(LS_FINAL, next);
-      return next;
-    });
-  }, []);
-  const markPublished = useCallback((id: string) => {
-    setPublishedIds((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      saveSet(LS_PUB, next);
-      return next;
-    });
-  }, []);
+  const markFinalised = useCallback(async (id: string) => {
+    try {
+      await finaliseRun(id);
+      await refreshRuns();
+    } catch (e) {
+      toast((e as Error).message || "Could not finalise");
+    }
+  }, [refreshRuns, toast]);
+  const markPublished = useCallback(async (id: string) => {
+    try {
+      await publishRun(id);
+      await refreshRuns();
+    } catch (e) {
+      toast((e as Error).message || "Could not publish");
+    }
+  }, [refreshRuns, toast]);
 
   const startRun = useCallback(
     (req: GenerateRequest) => {
