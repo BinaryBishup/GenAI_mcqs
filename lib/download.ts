@@ -133,7 +133,9 @@ function svgToPng(svg: string): Promise<{ dataUrl: string; w: number; h: number 
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL("image/png");
+          // JPEG on the white background: keeps diagrams legible at 2x while
+          // keeping the PDF small (PNG made a 10-question set ~25 MB).
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
           URL.revokeObjectURL(url);
           resolve({ dataUrl, w, h });
         } catch { URL.revokeObjectURL(url); resolve(null); }
@@ -206,7 +208,7 @@ export async function downloadQuestionsPdf(
         const drawW = Math.min(CONTENT_W, 360);
         const drawH = (png.h / png.w) * drawW;
         ensure(drawH + 8);
-        try { doc.addImage(png.dataUrl, "PNG", MARGIN, y, drawW, drawH); } catch { /* skip */ }
+        try { doc.addImage(png.dataUrl, "JPEG", MARGIN, y, drawW, drawH); } catch { /* skip */ }
         y += drawH + 8;
       }
     }
