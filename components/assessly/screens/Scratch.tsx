@@ -47,6 +47,52 @@ const D = {
 
 const STAGE_LABELS = ["Describe", "Audience", "Follow-up", "Brief", "Samples"];
 
+// ---- Small stroke icons local to the wizard (style matches ../icons.tsx) ----
+function IconGrad({ s = 16, stroke = "currentColor" }: { s?: number; stroke?: string }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 18 18" fill="none" stroke={stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1.8 6.6 9 3.2l7.2 3.4L9 10 1.8 6.6z" />
+      <path d="M4.6 8.4v3.2c0 1.1 2 2.1 4.4 2.1s4.4-1 4.4-2.1V8.4" />
+      <path d="M16.2 7v4" />
+    </svg>
+  );
+}
+function IconBriefcase({ s = 16, stroke = "currentColor" }: { s?: number; stroke?: string }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 18 18" fill="none" stroke={stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2.2" y="5.4" width="13.6" height="9.4" rx="1.6" />
+      <path d="M6.4 5.4V4.2A1.7 1.7 0 018.1 2.5h1.8a1.7 1.7 0 011.7 1.7v1.2" />
+      <path d="M2.2 9.3h13.6" />
+    </svg>
+  );
+}
+function IconGauge({ s = 16, stroke = "currentColor" }: { s?: number; stroke?: string }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 18 18" fill="none" stroke={stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3.2 13.5a6.5 6.5 0 1111.6 0" />
+      <path d="M9 11.5l2.8-3.3" />
+    </svg>
+  );
+}
+function IconHash({ s = 16, stroke = "currentColor" }: { s?: number; stroke?: string }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 18 18" fill="none" stroke={stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6.8 2.8 5.4 15.2M12.6 2.8l-1.4 12.4M3 6.6h12.4M2.6 11.4H15" />
+    </svg>
+  );
+}
+/** Difficulty level bars: 1 = easy … 3 = hard. Inactive bars are faded. */
+function IconBars({ level, s = 15 }: { level: 1 | 2 | 3; s?: number }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 18 18" fill="currentColor" stroke="none">
+      <rect x="2.5" y="11" width="3.4" height="4.5" rx="1" opacity={level >= 1 ? 1 : 0.25} />
+      <rect x="7.3" y="7.5" width="3.4" height="8" rx="1" opacity={level >= 2 ? 1 : 0.25} />
+      <rect x="12.1" y="4" width="3.4" height="11.5" rx="1" opacity={level >= 3 ? 1 : 0.25} />
+    </svg>
+  );
+}
+
+
 /** Rebuild the interview transcript from the wizard's page history. */
 function toTranscript(steps: Step[]): ScratchChatMsg[] {
   return steps.flatMap((s): ScratchChatMsg[] => {
@@ -370,7 +416,7 @@ export function Scratch() {
     ctaEnabled = !busy;
     onCta = () => showSamples();
   } else {
-    ctaLabel = "✦ Generate questions";
+    ctaLabel = "Generate questions";
     ctaEnabled = !busy && !launching && selected.size > 0;
     onCta = launch;
   }
@@ -467,8 +513,9 @@ export function Scratch() {
                     <HBox
                       key={m}
                       onClick={() => setAudMode(m)}
-                      style={{ flex: 1, textAlign: "center", borderRadius: 10, padding: "15px 0", fontSize: 16, fontWeight: 700, cursor: "pointer", background: on ? "#fff" : "transparent", color: on ? D.navy : D.muted, boxShadow: on ? "0 1px 3px rgba(22,35,63,0.14)" : "none" }}
+                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 9, borderRadius: 10, padding: "15px 0", fontSize: 16, fontWeight: 700, cursor: "pointer", background: on ? "#fff" : "transparent", color: on ? D.navy : D.muted, boxShadow: on ? "0 1px 3px rgba(22,35,63,0.14)" : "none" }}
                     >
+                      {m === "Campus" ? <IconGrad s={17} /> : <IconBriefcase s={16} />}
                       {m}
                     </HBox>
                   );
@@ -477,7 +524,10 @@ export function Scratch() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <section style={{ background: "#fff", border: `1.5px solid ${D.border}`, borderRadius: 16, padding: 26 }}>
-                  <div style={{ fontSize: 16.5, fontWeight: 700, marginBottom: 14 }}>{audMode === "Campus" ? "Campus category" : "Years of experience"}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                    <span style={{ width: 28, height: 28, borderRadius: 8, background: "#F0F3FA", color: D.navy, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{audMode === "Campus" ? <IconGrad s={16} /> : <IconBriefcase s={15} />}</span>
+                    <span style={{ fontSize: 16.5, fontWeight: 700 }}>{audMode === "Campus" ? "Campus category" : "Years of experience"}</span>
+                  </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     {(audMode === "Campus" ? AUD_TIERS : AUD_EXPS).map((t) => (
                       <RadioRow
@@ -491,16 +541,20 @@ export function Scratch() {
                 </section>
 
                 <section style={{ background: "#fff", border: `1.5px solid ${D.border}`, borderRadius: 16, padding: 26 }}>
-                  <div style={{ fontSize: 16.5, fontWeight: 700, marginBottom: 14 }}>Difficulty</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                    <span style={{ width: 28, height: 28, borderRadius: 8, background: "#F0F3FA", color: D.navy, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IconGauge s={16} /></span>
+                    <span style={{ fontSize: 16.5, fontWeight: 700 }}>Difficulty</span>
+                  </div>
                   <div style={{ display: "flex", background: "#F3F5F9", border: `1px solid ${D.border}`, borderRadius: 12, padding: 4, gap: 4 }}>
-                    {AUD_DIFFS.map((t) => {
+                    {AUD_DIFFS.map((t, i) => {
                       const on = audDiff === t;
                       return (
                         <HBox
                           key={t}
                           onClick={() => setAudDiff(t)}
-                          style={{ flex: 1, textAlign: "center", borderRadius: 10, padding: "15px 0", fontSize: 16, fontWeight: 700, cursor: "pointer", background: on ? "#fff" : "transparent", color: on ? D.navy : D.muted, boxShadow: on ? "0 1px 3px rgba(22,35,63,0.14)" : "none" }}
+                          style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 10, padding: "15px 0", fontSize: 16, fontWeight: 700, cursor: "pointer", background: on ? "#fff" : "transparent", color: on ? D.navy : D.muted, boxShadow: on ? "0 1px 3px rgba(22,35,63,0.14)" : "none" }}
                         >
+                          <IconBars level={(i + 1) as 1 | 2 | 3} />
                           {t}
                         </HBox>
                       );
@@ -509,7 +563,10 @@ export function Scratch() {
                 </section>
 
                 <section style={{ background: "#fff", border: `1.5px solid ${D.border}`, borderRadius: 16, padding: 26 }}>
-                  <div style={{ fontSize: 16.5, fontWeight: 700, marginBottom: 14 }}>Number of questions</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                    <span style={{ width: 28, height: 28, borderRadius: 8, background: "#F0F3FA", color: D.navy, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IconHash s={15} /></span>
+                    <span style={{ fontSize: 16.5, fontWeight: 700 }}>Number of questions</span>
+                  </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     {AUD_COUNTS.map((t) => (
                       <RadioRow key={t} label={`${t} questions`} on={audCount === t && !audCustomCount.trim()} onClick={() => { setAudCount(t); setAudCustomCount(""); }} />
@@ -656,7 +713,10 @@ export function Scratch() {
             style={{ border: "none", background: ctaEnabled ? D.navy : "#C6CCDA", color: "#fff", borderRadius: 12, padding: "17px 36px", fontSize: 17.5, fontWeight: 700, cursor: ctaEnabled ? "pointer" : "not-allowed", boxShadow: "0 4px 14px rgba(22,35,63,0.22)" }}
             hover={ctaEnabled ? { opacity: 0.92 } : undefined}
           >
-            {ctaLabel}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
+              {phase === "samples" && <IconSpark s={17} stroke="#fff" />}
+              {ctaLabel}
+            </span>
           </HBtn>
         </div>
       </footer>
