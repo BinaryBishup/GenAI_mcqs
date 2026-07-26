@@ -417,7 +417,7 @@ export function Review() {
       </div>
 
       {/* RIGHT: process + meta sidebar */}
-      <div style={{ width: 344, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 0 }}>
+      <div style={{ width: "clamp(264px, 24vw, 344px)", flexShrink: 0, display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 0 }}>
         {/* Generation process */}
         <div style={{ background: "#fff", border: "1px solid #E9EDF1", borderRadius: 14, padding: "18px 19px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
@@ -1086,30 +1086,30 @@ function QuestionCard(p: CardProps) {
           )}
 
           {/* action row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, paddingTop: 13, borderTop: "1px solid #F0F3F6" }}>
-            <button onClick={p.onApprove} style={{ height: 35, padding: "0 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, color: approved ? "#fff" : "#2E7D32", background: approved ? "#2E7D32" : "#EAF6E4", border: `1.5px solid ${approved ? "#2E7D32" : "#BFE0AC"}` }}>
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 14, paddingTop: 13, borderTop: "1px solid #F0F3F6" }}>
+            <button onClick={p.onApprove} style={{ height: 35, padding: "0 14px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 7, color: approved ? "#fff" : "#2E7D32", background: approved ? "#2E7D32" : "#EAF6E4", border: `1.5px solid ${approved ? "#2E7D32" : "#BFE0AC"}` }}>
               <IconCheck s={14} sw={2.2} />
               {approved ? "Approved" : "Approve"}
             </button>
             {!demoted && (
               <>
-                <HBtn onClick={p.onEdit} style={{ height: 35, padding: "0 13px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, color: C.slate, background: "#fff", border: "1.5px solid #E3E8ED" }} hover={{ borderColor: "#C8D2DC", background: "#FAFBFC" }}>
+                <HBtn onClick={p.onEdit} style={{ height: 35, padding: "0 13px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 7, color: C.slate, background: "#fff", border: "1.5px solid #E3E8ED" }} hover={{ borderColor: "#C8D2DC", background: "#FAFBFC" }}>
                   <IconPencil s={14} sw={1.7} />
                   Edit
                 </HBtn>
-                <HBtn onClick={p.onAiEdit} style={{ height: 35, padding: "0 13px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, color: C.navy, background: "#E1E8F4", border: "1.5px solid #CFDBEC" }} hover={{ background: "#D4E0F0" }}>
+                <HBtn onClick={p.onAiEdit} style={{ height: 35, padding: "0 13px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 7, color: C.navy, background: "#E1E8F4", border: "1.5px solid #CFDBEC" }} hover={{ background: "#D4E0F0" }}>
                   <IconSpark s={14} sw={1.7} />
                   Edit with AI
                 </HBtn>
                 <div style={{ flex: 1 }} />
-                <HBtn onClick={p.onDuplicate} style={{ height: 35, padding: "0 13px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, color: "#A86A12", background: "#fff", border: "1.5px solid #ECD49C" }} hover={{ background: "#FBF1E0" }}>
+                <HBtn onClick={p.onDuplicate} style={{ height: 35, padding: "0 13px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 7, color: "#A86A12", background: "#fff", border: "1.5px solid #ECD49C" }} hover={{ background: "#FBF1E0" }}>
                   <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.7}>
                     <rect x="3" y="3" width="9" height="9" rx="1.6" />
                     <path d="M6 12.5v1.5a1.5 1.5 0 001.5 1.5H14a1.5 1.5 0 001.5-1.5V8a1.5 1.5 0 00-1.5-1.5h-1.5" />
                   </svg>
                   Too similar
                 </HBtn>
-                <HBtn onClick={p.onReject} style={{ height: 35, padding: "0 13px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, color: "#C0454B", background: "#fff", border: "1.5px solid #F0C9CC" }} hover={{ background: "#FCEBEC" }}>
+                <HBtn onClick={p.onReject} style={{ height: 35, padding: "0 13px", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 7, color: "#C0454B", background: "#fff", border: "1.5px solid #F0C9CC" }} hover={{ background: "#FCEBEC" }}>
                   <IconX s={14} sw={2} />
                   Reject
                 </HBtn>

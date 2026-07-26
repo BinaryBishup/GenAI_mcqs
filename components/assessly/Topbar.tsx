@@ -6,13 +6,13 @@ import { IconChevLeft, IconLock, IconLoop, IconPencil, IconSpark, IconCheck, Ico
 import { isOngoing, useAssessly } from "./store";
 import { ExportMenu } from "./ExportMenu";
 
-const TITLES: Record<string, { title: string; subtitle: string }> = {
-  dashboard: { title: "Team workspace", subtitle: "Generate, review and finalise question banks for your team." },
-  ongoing: { title: "Ongoing Generations", subtitle: "Live generation jobs moving through the pipeline." },
-  generated: { title: "Generated Sets", subtitle: "Finished generations awaiting your review and approval." },
-  finalised: { title: "Finalised Banks", subtitle: "Approved sets — open a bank to view and export its questions." },
-  banks: { title: "Question Banks", subtitle: "Your team's Local banks and the shared Mettl Admin inventory." },
-  scratch: { title: "Team workspace", subtitle: "Generate, review and finalise question banks for your team." },
+const TITLES: Record<string, { title: string }> = {
+  dashboard: { title: "Team workspace" },
+  ongoing: { title: "Ongoing Generations" },
+  generated: { title: "Generated Sets" },
+  finalised: { title: "Finalised Banks" },
+  banks: { title: "Question Banks" },
+  scratch: { title: "Team workspace" },
 };
 
 function PrimaryActions() {
@@ -50,24 +50,19 @@ export function Topbar() {
   const { screen, bankFile, go, reviewBar, activeTagId, tags, runs, deleteTag, finalRunId } = useAssessly();
 
   let title = TITLES[screen]?.title ?? "Workspace";
-  let subtitle = TITLES[screen]?.subtitle ?? "";
   if (screen === "bank" && bankFile) {
     title = bankFile;
-    subtitle = "Sample question bank · view only";
   }
   const finalRun = screen === "finalisedRun" ? runs.find((r) => r.id === finalRunId) : undefined;
   if (screen === "finalisedRun") {
     title = finalRun?.topic || "Finalised bank";
-    subtitle = "Finalised bank · read only";
   }
   const tag = screen === "tag" ? tags.find((t) => t.id === activeTagId) : undefined;
   if (screen === "tag") {
     title = tag ? tag.name : "Tag";
-    subtitle = "Generations and banks filed under this tag.";
   }
   if (screen === "review" && reviewBar) {
     title = reviewBar.title;
-    subtitle = "Review each question, then finalise the approved set.";
   }
 
   const dd = reviewBar ? diffStyle(reviewBar.difficulty) : null;
@@ -89,7 +84,6 @@ export function Topbar() {
             </span>
           )}
         </div>
-        <div style={{ fontSize: 12.5, color: C.muted, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{subtitle}</div>
       </div>
       <div style={{ flex: 1 }} />
 
