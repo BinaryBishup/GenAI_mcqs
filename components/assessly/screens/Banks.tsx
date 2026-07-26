@@ -86,9 +86,7 @@ export function Banks() {
             );
           })}
         </div>
-        <span style={{ fontSize: 12.5, color: C.muted, flex: 1 }}>
-          {tab === "local" ? "Your team's question banks. Upload more, browse, and use them when generating." : "Shared Mettl admin inventory — connected via the Mettl API."}
-        </span>
+        <span style={{ flex: 1 }} />
         {tab === "local" && (
           <HBtn onClick={() => setUploadOpen(true)} style={{ height: 40, padding: "0 16px", background: C.navy, color: "#fff", border: "none", borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }} hover={{ background: C.navyHover }}>
             <IconUpload s={16} />Upload bank
@@ -101,10 +99,7 @@ export function Banks() {
           <div style={{ width: 52, height: 52, borderRadius: 14, background: "#EEF2F6", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
             <IconBank s={24} stroke={C.slate2} />
           </div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>Mettl admin inventory</div>
-          <div style={{ fontSize: 13.5, color: C.muted, marginTop: 6, maxWidth: 440, marginLeft: "auto", marginRight: "auto", lineHeight: 1.55 }}>
-            The shared admin question inventory will appear here once the Mettl admin API is connected. For now, use your team's <b style={{ color: C.slate }}>Local</b> banks.
-          </div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>Mettl inventory</div>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 16, fontSize: 11.5, fontWeight: 700, padding: "6px 12px", borderRadius: 100, color: C.slate2, background: "#EEF1F5" }}>
             <IconLock s={13} />Not connected yet
           </span>
