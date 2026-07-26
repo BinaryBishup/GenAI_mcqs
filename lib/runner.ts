@@ -8,6 +8,7 @@ import {
   buildVariantPrompt,
   REVIEW_SYSTEM,
   buildReviewPrompt,
+  teamGuidance,
 } from "./prompts";
 import { loadSeedPool, planSeeds, type SeedRow, type SeedAssignment } from "./seed-plan";
 import { generateDiagram } from "./diagram";
@@ -36,20 +37,6 @@ const LEX_SIBLING = 0.82;
 const LEX_SOURCE = 0.85;
 const MAX_REGEN = 2;
 
-/** Per-team generation/review guidance, appended to the user's instructions. */
-function teamGuidance(team?: string): string {
-  switch (team) {
-    case "HACK":
-      return "TEAM CONTEXT — Technical screening (programming, systems, databases, cloud, networking, security). Demand technical accuracy and current terminology. Distractors must be realistic technical misconceptions (off-by-one, wrong API, swapped concept), never obvious filler.";
-    case "Cognitive":
-      return "TEAM CONTEXT — Quantitative & logical aptitude. CRITICAL: every numeric answer MUST be arithmetically correct — work the math step by step and double-check before committing the key. Each question must have EXACTLY ONE unambiguous correct answer: avoid ill-posed framings with more than one defensible reading (e.g. 'overall/net loss' across a buy→sell→buyback chain where it's unclear whether the asset is still held). Vary the scenario domain, the specific numbers, and the exact quantity asked across questions so no two feel like the same problem reskinned.";
-    case "Domain":
-      return "TEAM CONTEXT — Functional / business domain knowledge (project management, tools, processes, workplace practice). Use realistic, varied workplace scenarios; ground answers in standard best practice; avoid trivia.";
-    default:
-      return "";
-  }
-}
-
 /** Embedding text for a question: stem + its correct answer, so two questions
  *  that resolve to the SAME concept/answer (even with different scenarios) land
  *  close together and the dedup catches the redundancy. */
@@ -65,9 +52,11 @@ function embText(question: string, options: string[], correct: number): string {
  * concept the bank happens to over-represent. Falls back to the original order
  * if embeddings are unavailable.
  */
-async function diverseOrder(pool: SeedRow[], want: number): Promise<SeedRow[]> {
+async function diverseOrder(pool: SeedRow[], want: number, precomputed?: number[][] | null): Promise<SeedRow[]> {
   if (pool.length <= 2) return pool;
-  const vecs = await embedSafe(pool.map((s) => embText(s.question, s.options, s.correct_index)));
+  const vecs = precomputed && precomputed.length === pool.length
+    ? precomputed
+    : await embedSafe(pool.map((s) => embText(s.question, s.options, s.correct_index)));
   if (!vecs || vecs.length !== pool.length) return pool;
   const n = pool.length;
   const k = Math.min(n, Math.max(want, 30));
@@ -133,6 +122,8 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
     .insert({
       status: "generating",
       team: req.team ?? null,
+      created_by: req.created_by ?? null,
+      created_by_name: req.created_by_name ?? null,
       topic: req.topic,
       difficulty: req.difficulty,
       mcq_type: req.mcq_type,
@@ -142,9 +133,10 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
       sample_file_ids: req.sample_files,
       samples_per_file: req.samples_per_file,
       max_revamp_attempts: req.max_revamp_attempts,
-      // Persist the user's prompts so the review screen can show what was asked.
-      extra_prompt: req.extra_prompt?.trim() || null,
-      negative_prompt: req.negative_prompt?.trim() || null,
+      mode: req.mode ?? null,
+      grounded: req.grounding ?? null,
+      extra_prompt: req.extra_prompt ?? null,
+      negative_prompt: req.negative_prompt ?? null,
     })
     .select()
     .single();
@@ -176,22 +168,38 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
     let seedAssignments: SeedAssignment[] = [];
     let samplesBlock = "";
     let sourceQuestions: SourceQuestion[] = [];
+    // Full-bank similarity reference: texts + embeddings of EVERY question in
+    // the selected bank(s), so the dedup gate compares generated questions
+    // against the whole bank (1000–2000 rows), not a 20-question sample. The
+    // embeddings are computed once here and shared with diverseOrder.
+    let sourceRef: { texts: string[]; vecs: number[][] | null } | null = null;
     if (useSeeded) {
       const pool: SeedRow[] = [];
+      let poolVecs: number[][] | null = [];
       if (req.bank_specs && req.bank_specs.length > 0) {
         // Per-bank, difficulty-filtered seeding: each bank contributes `count`
         // variants drawn ONLY from its questions at the chosen difficulty.
         for (const spec of req.bank_specs) {
           const bankPool = await loadSeedPool([spec.file], spec.difficulty);
           pool.push(...bankPool);
-          const ordered = await diverseOrder(bankPool, spec.count);
+          const bankVecs = await embedSafe(bankPool.map((s) => embText(s.question, s.options, s.correct_index)));
+          if (bankVecs && poolVecs) poolVecs.push(...bankVecs);
+          else poolVecs = null;
+          const ordered = await diverseOrder(bankPool, spec.count, bankVecs);
           seedAssignments.push(...planSeeds(ordered, spec.count, false));
         }
       } else {
         const all = await loadSeedPool(req.sample_files);
         pool.push(...all);
-        const ordered = await diverseOrder(all, req.count);
+        poolVecs = await embedSafe(all.map((s) => embText(s.question, s.options, s.correct_index)));
+        const ordered = await diverseOrder(all, req.count, poolVecs);
         seedAssignments = planSeeds(ordered, req.count, false);
+      }
+      if (pool.length > 0) {
+        sourceRef = {
+          texts: pool.map((s) => embText(s.question, s.options, s.correct_index)),
+          vecs: poolVecs && poolVecs.length === pool.length ? poolVecs : null,
+        };
       }
       sourceQuestions = pool
         .slice(0, 20)
@@ -224,6 +232,13 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
       grounded: false,
       question_kinds: req.question_kinds ?? [],
     });
+    // Attachment digests (extracted text) — persisted only now, when a run is
+    // actually created from them (column exists after migration 010).
+    if (req.attachments && req.attachments.length > 0) {
+      await bestEffortUpdate(supa, "runs", runId, {
+        attachments: req.attachments.map((a) => ({ name: String(a.name).slice(0, 200), digest: String(a.digest).slice(0, 8000) })),
+      });
+    }
 
     // Fold the team's guidance into the user instructions for every model call.
     const req2: GenerateRequest = {
@@ -253,7 +268,7 @@ export async function runWorkflow(req: GenerateRequest, emit: Emit): Promise<{ r
     const seedByIndex: (SeedRow | null)[] = mcqs.map((m) => (m.parent_sample_id ? seedMap.get(m.parent_sample_id) ?? null : null));
 
     // ---- 4. Uniqueness: web plag (Tavily) + semantic dedup + regenerate ----
-    const accepted = await uniquenessPass(mcqs, seedByIndex, sourceQuestions, req2, model, log, supa, runId);
+    const accepted = await uniquenessPass(mcqs, seedByIndex, sourceQuestions, req2, model, log, supa, runId, sourceRef);
 
     // ---- 5. Review pass (correctness / uniqueness / quality) ---------------
     await supa.from("runs").update({ status: "reviewing" }).eq("id", runId);
@@ -491,13 +506,18 @@ async function uniquenessPass(
   log: (evt: StreamEvent) => void,
   supa: ReturnType<typeof supabaseAdmin>,
   runId: string,
+  sourceRef?: { texts: string[]; vecs: number[][] | null } | null,
 ): Promise<Accepted> {
   await supa.from("runs").update({ status: "plagchecking" }).eq("id", runId);
   log({ type: "phase", data: { phase: "uniqueness", message: `Checking ${mcqs.length} questions for plagiarism & similarity...` } });
 
-  const sourceTexts = sourceQuestions.map((s) => embText(s.question, s.options, s.correct_index));
+  // Prefer the full-bank reference (every source question, embeddings reused
+  // from seed planning) over the bounded 20-question review reference.
+  const sourceTexts = sourceRef
+    ? sourceRef.texts
+    : sourceQuestions.map((s) => embText(s.question, s.options, s.correct_index));
   let semantic = true;
-  let sourceVecs = await embedSafe(sourceTexts);
+  let sourceVecs = sourceRef ? sourceRef.vecs : await embedSafe(sourceTexts);
   if (sourceVecs === null) {
     semantic = false;
     sourceVecs = [];
@@ -660,22 +680,15 @@ async function generateImages(
       const i = nextIdx++;
       if (i >= mcqs.length) return;
       let svg: string | null = null;
-      // The user explicitly asked for images and generation built every
-      // question around a figure, so draw one for each — never decide NONE.
-      // A null here means a transient model/parse miss; retry once.
-      for (let attempt = 0; attempt < 2 && !svg; attempt++) {
-        try {
-          svg = await generateDiagram({
-            question: mcqs[i].question,
-            options: mcqs[i].options,
-            difficulty: req.difficulty,
-            model,
-            force: true,
-            instruction: req.extra_prompt?.trim() || undefined,
-          });
-        } catch {
-          /* best-effort: never fail the run on a diagram */
-        }
+      try {
+        svg = await generateDiagram({
+          question: mcqs[i].question,
+          options: mcqs[i].options,
+          difficulty: req.difficulty,
+          model,
+        });
+      } catch {
+        /* best-effort: never fail the run on a diagram */
       }
       if (svg) {
         mcqs[i].image_svg = svg;
@@ -931,7 +944,6 @@ async function generateBatch(
     mode: req.mode ?? "sample",
     questionKinds: req.question_kinds,
     sampleTypeHint: detectSampleType(req.sample_files),
-    visualMode: (req.mode ?? "sample") === "scratch" && !!req.create_images,
   });
 
   // Sized for a single small batch — generous headroom so a batch never

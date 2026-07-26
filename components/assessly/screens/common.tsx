@@ -19,7 +19,7 @@ export interface RunView {
   status: string;
 }
 
-export function runView(r: PastRunSummary, finalised: boolean, by = "—"): RunView {
+export function runView(r: PastRunSummary, finalised: boolean): RunView {
   const stage = stageIndex(r.status, finalised);
   const awaitingReview = r.status === "done" && !finalised;
   let statusLabel: string = STAGES[stage] ?? "In progress";
@@ -31,7 +31,9 @@ export function runView(r: PastRunSummary, finalised: boolean, by = "—"): RunV
     modeLabel: runModeLabel(r),
     src: runSourceLabel(r),
     count: r.count,
-    by,
+    // Stamped at creation time; runs from before tracking show a dash rather
+    // than falsely attributing them to whoever is looking at the list.
+    by: r.created_by_name ?? "—",
     when: timeAgo(r.started_at),
     stage,
     statusLabel,
@@ -85,10 +87,13 @@ export function EmptyRow({ children }: { children: React.ReactNode }) {
   return <div style={{ padding: 24, textAlign: "center", color: C.faint, fontSize: 13, borderTop: "1px solid #F0F3F6" }}>{children}</div>;
 }
 
-export function TitleCell({ title, sub }: { title: string; sub: string }) {
+export function TitleCell({ title, sub, after }: { title: string; sub: string; after?: React.ReactNode }) {
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: C.navy, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</span>
+        {after}
+      </div>
       <div style={{ fontSize: 11.5, color: C.faint, marginTop: 2 }}>{sub}</div>
     </div>
   );

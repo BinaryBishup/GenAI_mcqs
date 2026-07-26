@@ -63,16 +63,12 @@ function buildCodeSnippetIframe(language: Language, code: string): string {
 
 function buildQuestionText(mcq: MCQ): string {
   // Wrap question in a <div> for Mettl's rich-text editor. Append the
-  // codesnippet iframe for code MCQs, and the inline SVG diagram (if any) so
-  // image-based questions keep their figure in Mettl's rich-text body.
-  let html = `<div>${escapeHtml(mcq.question)}</div>`;
+  // codesnippet iframe for code MCQs (matches the format Mettl exports).
+  const stem = `<div>${escapeHtml(mcq.question)}</div>`;
   if (mcq.snippet?.code && mcq.type === "code") {
-    html += buildCodeSnippetIframe(mcq.snippet.language, mcq.snippet.code);
+    return stem + buildCodeSnippetIframe(mcq.snippet.language, mcq.snippet.code);
   }
-  if (mcq.image_svg) {
-    html += `<div>${mcq.image_svg}</div>`;
-  }
-  return html;
+  return stem;
 }
 
 function escapeHtml(s: string): string {
@@ -145,9 +141,7 @@ export function buildMettlWorkbook(mcqs: MCQ[], opts: MettlExportOptions = {}): 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, sheet, "MCQ");
 
-  // Emit .xlsx (OOXML), NOT .xls (BIFF8): SheetJS's BIFF8 writer hard-truncates
-  // every text cell to 255 chars, which cut long question stems / explanations
-  // mid-sentence. .xlsx has no such limit; Mettl's bulk upload accepts it.
-  // type:"array" returns an ArrayBuffer which a Blob accepts directly.
+  // Emit .xlsx: the legacy BIFF .xls writer truncates long cell text (~255
+  // chars), which cut off question stems. Mettl's uploader accepts .xlsx too.
   return XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
 }

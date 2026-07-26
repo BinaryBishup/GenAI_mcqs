@@ -1,11 +1,17 @@
 import type {
-  AdminBank, GenerateRequest, MCQ, PastRunSummary, SampleCatalog, SamplePreviewResult,
-  SampleTopic, StreamEvent,
+  GenerateRequest, MCQ, PastRunSummary, SampleCatalog, SamplePreviewResult,
+  SampleTopic, ScratchBrief, ScratchChatMsg, ScratchDoc, ScratchInterviewReply,
+  ScratchVariant, StreamEvent, Tag, TagItemType,
 } from "./types";
 import { supabaseBrowser } from "./supabase-browser";
 
+/** localStorage key for the team the user is currently viewing (multi-team users). */
+export const LS_VIEW_TEAM = "assessly.viewTeam";
+
 /** Bearer header for the current Supabase session, or {} when signed out. The
- *  server reads the team off this token to scope every request. */
+ *  server reads the team off this token to scope every request; the
+ *  x-assessly-team header picks WHICH of the user's visible teams applies
+ *  (validated server-side against the JWT's grants, so it can't escalate). */
 // Shared in-flight refresh so concurrent callers (e.g. the dashboard poller,
 // which dev StrictMode double-mounts) don't race separate refreshSession calls
 // and invalidate each other's token — the cause of intermittent 401s.
@@ -29,7 +35,10 @@ async function authHeader(): Promise<Record<string, string>> {
       session = refreshed.data.session ?? session;
     }
     const token = session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+    const viewTeam = localStorage.getItem(LS_VIEW_TEAM);
+    if (viewTeam) headers["x-assessly-team"] = viewTeam;
+    return headers;
   } catch {
     return {};
   }
@@ -66,6 +75,18 @@ export async function fetchTopic(filename: string): Promise<SampleTopic> {
   const res = await fetch(`/api/samples/${encodeURIComponent(filename)}`);
   if (!res.ok) throw new Error(`topic fetch failed: ${res.status}`);
   return res.json();
+}
+
+/** Rename a Local bank; tag memberships and run references follow the new name. */
+export async function renameSample(filename: string, name: string): Promise<{ filename: string }> {
+  const res = await fetchWithRetry(`/api/samples/${encodeURIComponent(filename)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ name }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? `rename failed: ${res.status}`);
+  return body;
 }
 
 export interface UploadSampleResult {
@@ -131,9 +152,83 @@ export async function fetchFinal(runId: string): Promise<{ run_id: string; quest
   return res.json();
 }
 
+/** Mark a run finalised on the server (team-wide, survives browser changes). */
+export async function finaliseRun(runId: string, by?: string | null): Promise<void> {
+  const res = await fetch(`/api/runs/${runId}/finalise`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ by: by ?? undefined }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error ?? `finalise failed: ${res.status}`);
+  }
+}
+
+/** Persist one question's review decision (approve/reject/duplicate/pending). */
+export async function saveReviewDecision(
+  runId: string,
+  index: number,
+  status: "pending" | "approved" | "rejected" | "duplicate",
+  reason?: string,
+  by?: string | null,
+): Promise<void> {
+  const res = await fetch(`/api/runs/${runId}/review`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ index, status, reason: reason || undefined, by: by ?? undefined }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error ?? `review save failed: ${res.status}`);
+  }
+}
+
 export async function health() {
   const res = await fetch("/api/health");
   return res.json();
+}
+
+// ---- Tags: team-scoped labels grouping runs + sample banks ----
+
+export async function fetchTags(): Promise<{ tags: Tag[] }> {
+  const res = await fetch("/api/tags", { cache: "no-store", headers: await authHeader() });
+  if (!res.ok) throw new Error(`tags fetch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function createTag(name: string, color: string): Promise<Tag> {
+  const res = await fetch("/api/tags", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ name, color }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `create tag failed: ${res.status}`);
+  return data.tag as Tag;
+}
+
+export async function deleteTag(id: string): Promise<void> {
+  const res = await fetch(`/api/tags/${id}`, { method: "DELETE", headers: await authHeader() });
+  if (!res.ok) throw new Error(`delete tag failed: ${res.status}`);
+}
+
+export async function addTagItem(tagId: string, itemType: TagItemType, itemId: string): Promise<void> {
+  const res = await fetch(`/api/tags/${tagId}/items`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ item_type: itemType, item_id: itemId }),
+  });
+  if (!res.ok) throw new Error(`add to tag failed: ${res.status}`);
+}
+
+export async function removeTagItem(tagId: string, itemType: TagItemType, itemId: string): Promise<void> {
+  const res = await fetch(`/api/tags/${tagId}/items`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ item_type: itemType, item_id: itemId }),
+  });
+  if (!res.ok) throw new Error(`remove from tag failed: ${res.status}`);
 }
 
 /** Persist an edit to one MCQ (by run + index); server re-runs the answer-check. */
@@ -160,53 +255,6 @@ export async function regenMcqImage(runId: string, index: number, instruction?: 
   return data.image_svg as string;
 }
 
-/** Persist one reviewer's decision for a question (approved/rejected/duplicate/pending). */
-export async function setMcqReview(
-  runId: string,
-  index: number,
-  status: "pending" | "approved" | "rejected" | "duplicate",
-): Promise<void> {
-  const res = await fetch(`/api/runs/${runId}/review`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(await authHeader()) },
-    body: JSON.stringify({ index, status }),
-  });
-  if (!res.ok) throw new Error(`review save failed: ${res.status}`);
-}
-
-/** Mark a run finalised (or undo). */
-export async function finaliseRun(runId: string, undo = false): Promise<void> {
-  const res = await fetch(`/api/runs/${runId}/finalise`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(await authHeader()) },
-    body: JSON.stringify({ undo }),
-  });
-  if (!res.ok) {
-    const d = await res.json().catch(() => ({}));
-    throw new Error(d?.error ?? `finalise failed: ${res.status}`);
-  }
-}
-
-/** Publish a finalised run to the shared Admin inventory (or undo). */
-export async function publishRun(runId: string, undo = false): Promise<void> {
-  const res = await fetch(`/api/runs/${runId}/publish`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(await authHeader()) },
-    body: JSON.stringify({ undo }),
-  });
-  if (!res.ok) {
-    const d = await res.json().catch(() => ({}));
-    throw new Error(d?.error ?? `publish failed: ${res.status}`);
-  }
-}
-
-/** The shared Admin inventory: published sets across all teams. */
-export async function fetchAdminInventory(): Promise<{ count: number; banks: AdminBank[] }> {
-  const res = await fetch("/api/banks/admin", { headers: await authHeader() });
-  if (!res.ok) throw new Error(`admin inventory fetch failed: ${res.status}`);
-  return res.json();
-}
-
 /** Ask the model to modify one MCQ per a natural-language instruction (not persisted). */
 export async function aiModifyMcq(mcq: MCQ, instruction: string): Promise<MCQ> {
   const res = await fetch("/api/mcqs/modify", {
@@ -217,6 +265,42 @@ export async function aiModifyMcq(mcq: MCQ, instruction: string): Promise<MCQ> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error ?? `modify failed: ${res.status}`);
   return data.mcq as MCQ;
+}
+
+// ---- Create-from-scratch chat wizard ----
+
+/** Reduce an attached reference document to a digest the chat can carry. */
+export async function ingestScratchDoc(file: File): Promise<ScratchDoc> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetchWithRetry("/api/scratch/ingest", { method: "POST", body: form, headers: await authHeader() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `ingest failed: ${res.status}`);
+  return data as ScratchDoc;
+}
+
+/** One interview turn: full transcript in, next question or finished brief out. */
+export async function scratchInterview(messages: ScratchChatMsg[], docs: ScratchDoc[]): Promise<ScratchInterviewReply> {
+  const res = await fetchWithRetry("/api/scratch/interview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ messages, docs }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `interview failed: ${res.status}`);
+  return data as ScratchInterviewReply;
+}
+
+/** Generate 4 styled sample questions from a finished brief. */
+export async function scratchSamples(brief: ScratchBrief, exclude?: string[]): Promise<ScratchVariant[]> {
+  const res = await fetchWithRetry("/api/scratch/samples", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify({ brief, exclude }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `samples failed: ${res.status}`);
+  return (data.variants ?? []) as ScratchVariant[];
 }
 
 /**

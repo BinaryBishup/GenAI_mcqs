@@ -124,14 +124,32 @@ export const IconUpload = (p: P) => (
     <path d="M9 12V3M5.5 6.5L9 3l3.5 3.5M3 14.5h12" />
   </S>
 );
-export const IconShift = (p: P) => (
-  <S sw={2} {...p}>
-    <path d="M9 14V4M5 7l4-3 4 3" />
+export const IconSheet = (p: P) => (
+  <S {...p}>
+    <rect x="2.5" y="2.5" width="13" height="13" rx="1.5" />
+    <path d="M2.5 7h13M2.5 11.5h13M7.5 7v8.5" />
+  </S>
+);
+export const IconDocCheck = (p: P) => (
+  <S {...p}>
+    <path d="M10.5 2H4.5A1.5 1.5 0 003 3.5v11A1.5 1.5 0 004.5 16h9a1.5 1.5 0 001.5-1.5V6.5L10.5 2z" />
+    <path d="M10.5 2v4.5H15M6.2 11.4l1.8 1.8 3.3-3.6" />
+  </S>
+);
+export const IconDoc = (p: P) => (
+  <S {...p}>
+    <path d="M10.5 2H4.5A1.5 1.5 0 003 3.5v11A1.5 1.5 0 004.5 16h9a1.5 1.5 0 001.5-1.5V6.5L10.5 2z" />
+    <path d="M10.5 2v4.5H15M6 10h6M6 12.8h4" />
   </S>
 );
 export const IconDownload = (p: P) => (
-  <S sw={1.8} {...p}>
-    <path d="M9 3v9M5.5 8.5L9 12l3.5-3.5M3.5 15h11" />
+  <S {...p}>
+    <path d="M9 2.5v8.5M5.5 7.5L9 11l3.5-3.5M3 13.5v1a1.5 1.5 0 001.5 1.5h9a1.5 1.5 0 001.5-1.5v-1" />
+  </S>
+);
+export const IconShift = (p: P) => (
+  <S sw={2} {...p}>
+    <path d="M9 14V4M5 7l4-3 4 3" />
   </S>
 );
 export const IconClock = (p: P) => (
@@ -149,6 +167,12 @@ export const IconFile = (p: P) => (
 export const IconLogout = (p: P) => (
   <S sw={1.6} {...p}>
     <path d="M7 3.5H4.5A1.5 1.5 0 003 5v8a1.5 1.5 0 001.5 1.5H7M11 12l3-3-3-3M14 9H6.5" />
+  </S>
+);
+export const IconTag = (p: P) => (
+  <S sw={1.6} {...p}>
+    <path d="M2.8 8.3V3.4A.6.6 0 013.4 2.8h4.9a.6.6 0 01.42.17l6.3 6.3a.6.6 0 010 .85l-4.9 4.9a.6.6 0 01-.85 0l-6.3-6.3a.6.6 0 01-.17-.42z" />
+    <circle cx="6" cy="6" r="1.1" />
   </S>
 );
 export const IconImage = (p: P) => (

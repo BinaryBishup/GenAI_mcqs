@@ -1,5 +1,19 @@
 import type { Difficulty, Language, MCQType, QuestionKind } from "./types";
 
+/** Per-team generation/review guidance, appended to the user's instructions. */
+export function teamGuidance(team?: string): string {
+  switch (team) {
+    case "HACK":
+      return "TEAM CONTEXT — Technical screening (programming, systems, databases, cloud, networking, security). Demand technical accuracy and current terminology. Distractors must be realistic technical misconceptions (off-by-one, wrong API, swapped concept), never obvious filler.";
+    case "Cognitive":
+      return "TEAM CONTEXT — Quantitative & logical aptitude. CRITICAL: every numeric answer MUST be arithmetically correct — work the math step by step and double-check before committing the key. Each question must have EXACTLY ONE unambiguous correct answer: avoid ill-posed framings with more than one defensible reading (e.g. 'overall/net loss' across a buy→sell→buyback chain where it's unclear whether the asset is still held). Vary the scenario domain, the specific numbers, and the exact quantity asked across questions so no two feel like the same problem reskinned.";
+    case "Domain":
+      return "TEAM CONTEXT — Functional / business domain knowledge (project management, tools, processes, workplace practice). Use realistic, varied workplace scenarios; ground answers in standard best practice; avoid trivia.";
+    default:
+      return "";
+  }
+}
+
 interface SampleForPrompt {
   topic: string;
   difficulty: string;
@@ -369,8 +383,6 @@ export function buildUserPrompt(args: {
   questionKinds?: QuestionKind[];
   /** Sample mode: detected Application/Analysis type of the source samples, if known. */
   sampleTypeHint?: QuestionKind | null;
-  /** When set, every question must be built around a diagram (image-based set). */
-  visualMode?: boolean;
 }): string {
   const langs = args.mcqType === "code" && args.languages.length > 0
     ? `Languages allowed: ${args.languages.join(", ")}. Pick one language per question; vary across the set.`
@@ -421,18 +433,6 @@ export function buildUserPrompt(args: {
         "PATTERN VARIETY ACROSS THE BATCH — when the same source file gives you many samples, those samples cover several distinct question patterns (definition lookup, scenario→service, troubleshooting, comparison, true-statement, etc.). DO NOT pick one pattern and replicate it across all your generated MCQs. Spread your output across the different patterns visible in the samples, in roughly the proportions they appear. Vary scenarios (industries, use cases), entity names, and concepts under test from question to question.",
       ];
 
-  const visualBlock = args.visualMode
-    ? [
-        "",
-        "VISUAL / IMAGE QUESTIONS — TOP PRIORITY (overrides shape/variety rules): EVERY question MUST be built around a figure that will be rendered next to it.",
-        "  - Each question must REQUIRE reading a diagram to answer: a binary tree / graph / linked list to trace, a flowchart or process to follow, a network or system-architecture topology, a geometry figure, or a labelled chart/table.",
-        "  - FULLY SPECIFY the figure inside the stem in words — every node value, edge, connection, step, label, or coordinate — so the question is answerable from the text alone and the correct answer is unambiguous. The rendered diagram is a faithful picture of exactly what the stem describes; it must add NO information the stem omits.",
-        "  - Phrase the stem to reference the figure explicitly (e.g. 'The binary search tree below contains the keys …', 'Trace the flowchart shown …', 'In the network topology below, host A connects to …').",
-        "  - Do NOT write questions answerable without a figure (no plain definitions, no pure text recall, no 'what is the time complexity' lookups).",
-        "  - Vary the figure KIND across the set (trees, graphs, flowcharts, topologies, geometry, charts) — do not draw the same diagram type every time.",
-      ]
-    : [];
-
   const instruction = [
     `Generate ${args.count} novel MCQs.`,
     `Topic: ${args.topic}`,
@@ -443,7 +443,6 @@ export function buildUserPrompt(args: {
     langs,
     "",
     ...ground,
-    ...visualBlock,
     ...shapeBlock,
     ...typeBlock,
     "",

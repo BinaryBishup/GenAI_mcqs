@@ -13,8 +13,7 @@ import { C, STAGES, optView, stageIndex, stageView, timeAgo } from "../theme";
 import { HBtn, HInput, HTextarea, Spinner } from "../ui";
 import { IconCheck, IconInfo, IconPencil, IconSpark, IconWarn, IconX, IconXCircle } from "../icons";
 import { useAssessly } from "../store";
-import { aiModifyMcq, fetchRun, fetchRunEvents, fetchTopic, regenMcqImage, setMcqReview, updateMcq } from "@/lib/api";
-import { downloadMCQs, downloadQuestionsPdf } from "@/lib/download";
+import { aiModifyMcq, fetchRun, fetchRunEvents, fetchTopic, regenMcqImage, saveReviewDecision, updateMcq } from "@/lib/api";
 import type { Difficulty, MCQ, PastRunSummary } from "@/lib/types";
 
 type ReviewStatus = "pending" | "approved" | "rejected" | "duplicate";
@@ -42,7 +41,15 @@ interface BankRow {
   code: string | null;
 }
 
-type RunRecord = PastRunSummary & { status: string };
+type RunRecord = PastRunSummary & { status: string; extra_prompt?: string | null; negative_prompt?: string | null };
+
+const REVIEW_STATUSES: ReviewStatus[] = ["pending", "approved", "rejected", "duplicate"];
+
+/** The server-persisted decision when present, else the quality-gate default. */
+function initialStatus(m: MCQ): ReviewStatus {
+  if (REVIEW_STATUSES.includes(m.review_status as ReviewStatus)) return m.review_status as ReviewStatus;
+  return defaultStatus(m);
+}
 
 /** A passing MCQ defaults to approved; a flagged one waits for a human. */
 function defaultStatus(m: MCQ): ReviewStatus {
@@ -58,6 +65,7 @@ export function Review() {
   const { reviewRunId, runs, setReviewBar, markFinalised, go, toast, user } = useAssessly();
 
   const [run, setRun] = useState<RunRecord | null>(null);
+  const [openDoc, setOpenDoc] = useState<number | null>(null);
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -111,10 +119,9 @@ export function Review() {
           mcqs.map((mcq, i) => ({
             index: i,
             mcq,
-            // Persisted human decision wins; otherwise derive a sensible default.
-            status: (mcq.review_status as ReviewStatus | null) ?? defaultStatus(mcq),
-            rejectReason: "",
-            dupNote: "",
+            status: initialStatus(mcq),
+            rejectReason: mcq.review_status === "rejected" ? mcq.review_reason ?? "" : "",
+            dupNote: mcq.review_status === "duplicate" ? mcq.review_reason ?? "" : "",
             dupMatches: [],
           })),
         );
@@ -151,41 +158,19 @@ export function Review() {
       setReviewBar(null);
       return;
     }
-    // The set we export: approved questions, or (if none marked) everything not
-    // rejected/duplicate — so an un-triaged set still exports sensibly.
-    const exportList = () => {
-      const approved = items.filter((i) => i.status === "approved").map((i) => i.mcq);
-      return approved.length
-        ? approved
-        : items.filter((i) => i.status !== "rejected" && i.status !== "duplicate").map((i) => i.mcq);
-    };
     setReviewBar({
       title: meta.topic || "Untitled set",
       difficulty: meta.difficulty,
       approved: counts.approved,
       onRegenerate: () => toast("Regeneration queued"),
-      onFinalise: async () => {
-        await markFinalised(reviewRunId);
+      onFinalise: () => {
+        markFinalised(reviewRunId);
         toast("Finalised to bank");
         go("finalised");
       },
-      onExport: () => {
-        const list = exportList();
-        if (!list.length) { toast("No approved questions to export"); return; }
-        downloadMCQs(list, "mettl", meta.topic || "Generated", { includeFlagged: true });
-        toast(`Exported ${list.length} question${list.length > 1 ? "s" : ""} (Mettl .xlsx)`);
-      },
-      onExportPdf: (withAnswers: boolean) => {
-        const list = exportList();
-        if (!list.length) { toast("No approved questions to export"); return; }
-        toast("Building PDF…");
-        downloadQuestionsPdf(list, meta.topic || "Generated", withAnswers)
-          .then(() => toast(`Exported PDF ${withAnswers ? "with answers" : "(questions only)"}`))
-          .catch(() => toast("PDF export failed"));
-      },
     });
     return () => setReviewBar(null);
-  }, [reviewRunId, meta, items, counts.approved, setReviewBar, markFinalised, go, toast]);
+  }, [reviewRunId, meta, counts.approved, setReviewBar, markFinalised, go, toast]);
 
   // -------- load sample-bank candidates when the too-similar modal opens --------
   const sampleKey = (meta?.sample_file_ids ?? []).join("|");
@@ -240,25 +225,31 @@ export function Review() {
     setItems((prev) => prev.map((it) => (it.index === idx ? fn(it) : it)));
   }, []);
 
-  // Persist a reviewer decision (optimistic — the UI already updated). Silent on
-  // failure; the next poll/reopen reconciles from the server.
-  const persistReview = useCallback((idx: number, status: ReviewStatus) => {
-    if (!reviewRunId) return;
-    setMcqReview(reviewRunId, idx, status).catch(() => {});
-  }, [reviewRunId]);
+  // Write a decision through to the server so it survives refreshes and is
+  // visible to teammates; failures keep the optimistic local state.
+  const persistDecision = useCallback(
+    (idx: number, status: ReviewStatus, reason?: string) => {
+      if (!reviewRunId) return;
+      saveReviewDecision(reviewRunId, idx, status, reason, user?.name ?? null).catch(() =>
+        toast("Decision kept on this device — server sync failed"),
+      );
+    },
+    [reviewRunId, user, toast],
+  );
 
   const onApprove = useCallback(
     (idx: number) => {
       const cur = items.find((i) => i.index === idx);
-      const next: ReviewStatus = cur?.status === "approved" ? "pending" : "approved";
+      if (!cur) return;
+      const nextStatus: ReviewStatus = cur.status === "approved" ? "pending" : "approved";
       patch(idx, (it) =>
-        next === "pending"
-          ? { ...it, status: "pending" }
-          : { ...it, status: "approved", rejectReason: "", dupNote: "", dupMatches: [] },
+        nextStatus === "approved"
+          ? { ...it, status: "approved", rejectReason: "", dupNote: "", dupMatches: [] }
+          : { ...it, status: "pending" },
       );
-      persistReview(idx, next);
+      persistDecision(idx, nextStatus);
     },
-    [items, patch, persistReview],
+    [items, patch, persistDecision],
   );
 
   const openEdit = useCallback((it: ReviewItem) => {
@@ -323,10 +314,10 @@ export function Review() {
   const confirmReject = useCallback(() => {
     if (rejectIdx === null) return;
     patch(rejectIdx, (it) => ({ ...it, status: "rejected", rejectReason: rejectReason.trim() }));
-    persistReview(rejectIdx, "rejected");
+    persistDecision(rejectIdx, "rejected", rejectReason.trim());
     setRejectOpen(false);
     toast("Question rejected");
-  }, [rejectIdx, rejectReason, patch, persistReview, toast]);
+  }, [rejectIdx, rejectReason, patch, persistDecision, toast]);
 
   const confirmDup = useCallback(() => {
     if (dupIdx === null || (dupSel.size === 0 && bankSel.size === 0)) return;
@@ -342,10 +333,10 @@ export function Review() {
       .filter((r): r is BankRow => !!r)
       .map((r) => ({ label: "Bank · " + r.difficulty, text: r.question }));
     patch(dupIdx, (it) => ({ ...it, status: "duplicate", dupMatches: [...genMatches, ...bankMatches] }));
-    persistReview(dupIdx, "duplicate");
+    persistDecision(dupIdx, "duplicate", [...genMatches, ...bankMatches].map((m) => m.label).join(", "));
     setDupOpen(false);
     toast("Flagged as too similar");
-  }, [dupIdx, dupSel, bankSel, bankRows, items, patch, persistReview, toast]);
+  }, [dupIdx, dupSel, bankSel, bankRows, items, patch, persistDecision, toast]);
 
   // demoted (rejected / duplicate) cards sort to the bottom, stable otherwise
   const sorted = useMemo(() => {
@@ -447,7 +438,9 @@ export function Review() {
         <div style={{ background: "#fff", border: "1px solid #E9EDF1", borderRadius: 14, padding: "18px 19px" }}>
           <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".5px", color: C.slate2, marginBottom: 12 }}>DETAILS</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-            <DetailRow label="Created by" value={user?.name ?? "—"} bold />
+            {/* The run's stamped creator — NOT the viewer; runs from before
+                attribution tracking show a dash. */}
+            <DetailRow label="Created by" value={meta?.created_by_name ?? "—"} bold />
             <DetailRow label="Source" value={sourceLabel} ellipsis />
             <DetailRow label="Questions" value={String(items.length)} bold />
             <DetailRow label="Method" value={modeLabel} />
@@ -467,7 +460,7 @@ export function Review() {
               </span>
               <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".3px", color: "#4C8A28" }}>ADDITIONAL PROMPT</span>
             </div>
-            <div style={{ fontSize: 12.5, color: C.slate, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{meta?.extra_prompt?.trim() || meta?.topic || "—"}</div>
+            <div style={{ fontSize: 12.5, color: C.slate, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{run?.extra_prompt || "—"}</div>
           </div>
           <div style={{ border: "1px solid #F2D3D5", background: "#FDF4F4", borderRadius: 11, padding: "12px 13px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
@@ -478,9 +471,36 @@ export function Review() {
               </span>
               <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".3px", color: "#C0454B" }}>NEGATIVE PROMPT</span>
             </div>
-            <div style={{ fontSize: 12.5, color: C.slate, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{meta?.negative_prompt?.trim() || "—"}</div>
+            <div style={{ fontSize: 12.5, color: C.slate, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{run?.negative_prompt || "—"}</div>
           </div>
         </div>
+
+        {/* ATTACHMENT DATA — extracted text of documents the author attached in the wizard */}
+        {run?.attachments && run.attachments.length > 0 && (
+          <div style={{ background: "#fff", border: "1px solid #E9EDF1", borderRadius: 14, padding: "18px 19px" }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".5px", color: C.slate2, marginBottom: 13 }}>ATTACHMENT DATA</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {run.attachments.map((a, i) => (
+                <div key={i} style={{ border: "1px solid #E3E8F0", background: "#F8FAFD", borderRadius: 11, overflow: "hidden" }}>
+                  <HBox
+                    onClick={() => setOpenDoc(openDoc === i ? null : i)}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 13px", cursor: "pointer" }}
+                    hover={{ background: "#F0F4FA" }}
+                  >
+                    <span style={{ fontSize: 12 }}>{openDoc === i ? "▾" : "▸"}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: C.navy, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{a.name}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: C.faint, flexShrink: 0 }}>{openDoc === i ? "hide" : "preview"}</span>
+                  </HBox>
+                  {openDoc === i && (
+                    <div style={{ borderTop: "1px solid #E3E8F0", padding: "11px 13px", fontSize: 12, color: C.slate, lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 260, overflowY: "auto", background: "#fff" }}>
+                      {a.digest}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Stats strip */}
         <div style={{ background: "#fff", border: "1px solid #E9EDF1", borderRadius: 14, padding: "16px 15px", display: "flex", alignItems: "center", justifyContent: "space-around", textAlign: "center" }}>
@@ -890,6 +910,7 @@ interface CardProps {
 function QuestionCard(p: CardProps) {
   const { item, editing } = p;
   const { mcq, status } = item;
+  const [showSource, setShowSource] = useState(false);
   const approved = status === "approved";
   const rejected = status === "rejected";
   const duplicate = status === "duplicate";
@@ -987,6 +1008,36 @@ function QuestionCard(p: CardProps) {
               <span style={{ fontSize: 12.5, color: C.slate2, lineHeight: 1.5 }}>
                 <b style={{ color: C.navy }}>Why:</b> {mcq.explanation}
               </span>
+            </div>
+          )}
+
+          {/* seed lineage — the original bank question this variant was cloned from */}
+          {mcq.source_sample && (
+            <div style={{ marginTop: 12 }}>
+              <div
+                onClick={() => setShowSource((s) => !s)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer", fontSize: 11.5, fontWeight: 700, color: C.slate, padding: "5px 11px", borderRadius: 100, border: "1px dashed #C8D2DC", background: "#FAFBFC", userSelect: "none" }}
+              >
+                <span style={{ fontSize: 12 }}>{showSource ? "▾" : "▸"}</span>
+                Cloned from source question
+                <span style={{ fontWeight: 600, color: C.faint }}>· {mcq.source_sample.source_file}</span>
+              </div>
+              {showSource && (
+                <div style={{ marginTop: 8, padding: "12px 14px", background: "#FAFBFC", border: "1px solid #E9EDF1", borderRadius: 10 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".5px", color: C.faint, marginBottom: 6 }}>
+                    ORIGINAL SEED · {mcq.source_sample.difficulty.toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.slate2, lineHeight: 1.45 }}>{mcq.source_sample.question}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 9 }}>
+                    {optView(mcq.source_sample.options, mcq.source_sample.correct_index).map((o, k) => (
+                      <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 9px", borderRadius: 8, fontSize: 12, color: o.fg, background: o.bg, border: `1px solid ${o.bd}` }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: o.dotFg }}>{o.letter}</span>
+                        <span>{o.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

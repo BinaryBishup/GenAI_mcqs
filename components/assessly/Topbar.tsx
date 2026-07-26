@@ -1,54 +1,18 @@
 "use client";
 
-import { useState } from "react";
 import { C, diffStyle, titleCase } from "./theme";
-import { HBtn, HBox } from "./ui";
-import { IconChevLeft, IconDownload, IconLock, IconLoop, IconPencil, IconSpark, IconCheck } from "./icons";
-import { useAssessly, type ReviewBar } from "./store";
-
-function ExportMenu({ bar }: { bar: ReviewBar }) {
-  const [open, setOpen] = useState(false);
-  const item = (label: string, sub: string, onClick: () => void) => (
-    <HBox
-      onClick={() => { onClick(); setOpen(false); }}
-      style={{ display: "flex", flexDirection: "column", gap: 1, padding: "9px 11px", borderRadius: 8, cursor: "pointer" }}
-      hover={{ background: "#F4F7FC" }}
-    >
-      <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{label}</span>
-      <span style={{ fontSize: 11, color: C.muted }}>{sub}</span>
-    </HBox>
-  );
-  return (
-    <div style={{ position: "relative" }}>
-      <HBtn
-        onClick={() => setOpen((o) => !o)}
-        title="Download the reviewed questions"
-        style={{ height: 40, padding: "0 15px", background: "#fff", border: "1.5px solid #E3E8ED", color: C.slate, borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}
-        hover={{ borderColor: "#C8D2DC" }}
-      >
-        <IconDownload s={15} />
-        Export
-      </HBtn>
-      {open && (
-        <>
-          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-          <div style={{ position: "absolute", top: 46, right: 0, zIndex: 50, background: "#fff", border: "1px solid #E6EBF0", borderRadius: 12, boxShadow: "0 14px 34px rgba(16,24,40,.16)", minWidth: 236, padding: 6 }}>
-            {item("Mettl bulk upload", "Excel .xlsx — ready to import", bar.onExport)}
-            {item("PDF — with answers", "Question paper + answer key", () => bar.onExportPdf(true))}
-            {item("PDF — questions only", "Clean question paper", () => bar.onExportPdf(false))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+import { HBtn, Spinner } from "./ui";
+import { IconChevLeft, IconLock, IconLoop, IconPencil, IconSpark, IconCheck, IconTrash } from "./icons";
+import { isOngoing, useAssessly } from "./store";
+import { ExportMenu } from "./ExportMenu";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: "Team workspace", subtitle: "Generate, review and finalise question banks for your team." },
   ongoing: { title: "Ongoing Generations", subtitle: "Live generation jobs moving through the pipeline." },
   generated: { title: "Generated Sets", subtitle: "Finished generations awaiting your review and approval." },
-  finalised: { title: "Finalised Banks", subtitle: "Approved sets — review, then shift to the shared Admin Pool." },
+  finalised: { title: "Finalised Banks", subtitle: "Approved sets — open a bank to view and export its questions." },
   banks: { title: "Question Banks", subtitle: "Your team's Local banks and the shared Mettl Admin inventory." },
+  scratch: { title: "Team workspace", subtitle: "Generate, review and finalise question banks for your team." },
 };
 
 function PrimaryActions() {
@@ -83,13 +47,23 @@ const VIEW_ONLY = (
 );
 
 export function Topbar() {
-  const { screen, bankFile, go, reviewBar } = useAssessly();
+  const { screen, bankFile, go, reviewBar, activeTagId, tags, runs, deleteTag, finalRunId } = useAssessly();
 
   let title = TITLES[screen]?.title ?? "Workspace";
   let subtitle = TITLES[screen]?.subtitle ?? "";
   if (screen === "bank" && bankFile) {
     title = bankFile;
     subtitle = "Sample question bank · view only";
+  }
+  const finalRun = screen === "finalisedRun" ? runs.find((r) => r.id === finalRunId) : undefined;
+  if (screen === "finalisedRun") {
+    title = finalRun?.topic || "Finalised bank";
+    subtitle = "Finalised bank · read only";
+  }
+  const tag = screen === "tag" ? tags.find((t) => t.id === activeTagId) : undefined;
+  if (screen === "tag") {
+    title = tag ? tag.name : "Tag";
+    subtitle = "Generations and banks filed under this tag.";
   }
   if (screen === "review" && reviewBar) {
     title = reviewBar.title;
@@ -103,6 +77,12 @@ export function Topbar() {
       <div style={{ minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: C.navy, letterSpacing: "-.4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</div>
+          {screen === "ongoing" && runs.some(isOngoing) && <Spinner size={15} />}
+          {tag && (
+            <span style={{ fontSize: 12, fontWeight: 700, color: C.slate2, background: "#EEF1F5", borderRadius: 100, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0 }}>
+              {tag.items.length} item{tag.items.length === 1 ? "" : "s"}
+            </span>
+          )}
           {screen === "review" && dd && (
             <span style={{ fontSize: 11.5, fontWeight: 700, padding: "4px 11px", borderRadius: 100, color: dd.fg, background: dd.bg, whiteSpace: "nowrap", flexShrink: 0 }}>
               {titleCase(reviewBar!.difficulty)} difficulty
@@ -113,7 +93,42 @@ export function Topbar() {
       </div>
       <div style={{ flex: 1 }} />
 
-      {(screen === "dashboard" || screen === "ongoing" || screen === "generated" || screen === "finalised") && <PrimaryActions />}
+      {(screen === "dashboard" || screen === "ongoing" || screen === "generated" || screen === "finalised" || screen === "banks" || screen === "tag") && <PrimaryActions />}
+
+      {tag && (
+        <HBtn
+          onClick={() => { if (confirm(`Delete the tag "${tag.name}"? The generations and banks themselves are not deleted.`)) { deleteTag(tag.id); go("dashboard"); } }}
+          style={{ height: 38, padding: "0 14px", background: "#fff", color: "#C0454B", border: "1.5px solid #F0D2D4", borderRadius: 9, fontSize: 12.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}
+          hover={{ background: "#FCEBEC", borderColor: "#E4A9AD" }}
+        >
+          <IconTrash s={15} />Delete tag
+        </HBtn>
+      )}
+
+      {screen === "finalisedRun" && finalRunId && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <HBtn
+            onClick={() => go("finalised")}
+            style={{ height: 40, padding: "0 15px", background: "#fff", color: C.slate, border: "1.5px solid #E3E8ED", borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}
+            hover={{ borderColor: C.navy, color: C.navy }}
+          >
+            <IconChevLeft s={16} sw={1.9} />
+            All finalised
+          </HBtn>
+          <ExportMenu runId={finalRunId} topic={finalRun?.topic || "finalised"} />
+        </div>
+      )}
+
+      {screen === "scratch" && (
+        <HBtn
+          onClick={() => go("dashboard")}
+          style={{ height: 40, padding: "0 15px", background: "#fff", color: C.slate, border: "1.5px solid #E3E8ED", borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}
+          hover={{ borderColor: C.navy, color: C.navy }}
+        >
+          <IconChevLeft s={16} sw={1.9} />
+          Dashboard
+        </HBtn>
+      )}
 
       {screen === "bank" && (
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -131,7 +146,6 @@ export function Topbar() {
 
       {screen === "review" && reviewBar && (
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-          <ExportMenu bar={reviewBar} />
           <HBtn
             onClick={reviewBar.onRegenerate}
             style={{ height: 40, padding: "0 15px", background: "#fff", border: "1.5px solid #E3E8ED", color: C.slate, borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}

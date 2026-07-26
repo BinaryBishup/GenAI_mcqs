@@ -1,17 +1,21 @@
 "use client";
 
+import { useState } from "react";
 import { C } from "./theme";
-import { HBox } from "./ui";
+import { HBox, HBtn } from "./ui";
 import {
   IconBank,
   IconCheck,
   IconDashboard,
-  IconLock,
   IconLoop,
   IconLogout,
+  IconPlus,
   IconSpark,
 } from "./icons";
 import { isOngoing, useAssessly, type Screen } from "./store";
+import { TagDot, TagModal } from "./Tags";
+import type { PastRunSummary } from "@/lib/types";
+import { DAILY_TOKEN_BUDGET, EST_TOKENS_PER_QUESTION } from "@/lib/limits";
 
 const LOGO = "https://assetsprelogin.mettl.com/_next/image/?url=%2Fassets%2Flogo%2FMarsh-Mercer-Mettl.svg&w=256&q=75";
 
@@ -21,17 +25,15 @@ function NavLink({
   label,
   badge,
   badgeColor,
-  trailingLock,
 }: {
   screen: Screen;
   icon: React.ReactNode;
   label: string;
   badge?: number;
   badgeColor?: string;
-  trailingLock?: boolean;
 }) {
   const { screen: active, go } = useAssessly();
-  const on = active === screen || (screen === "banks" && active === "bank") || (screen === "generated" && active === "review");
+  const on = active === screen || (screen === "banks" && active === "bank") || (screen === "generated" && active === "review") || (screen === "finalised" && active === "finalisedRun");
   return (
     <HBox
       onClick={() => go(screen)}
@@ -55,17 +57,101 @@ function NavLink({
       {badge ? (
         <span style={{ fontSize: 12.5, fontWeight: 700, background: badgeColor, color: "#fff", borderRadius: 100, padding: "2px 8px" }}>{badge}</span>
       ) : null}
-      {trailingLock ? <IconLock s={16} stroke="currentColor" style={{ opacity: 0.5 }} /> : null}
     </HBox>
   );
 }
 
+/** The TAGS section: create tags (via the shared modal) and jump to a tag's filtered view. */
+function TagsSection() {
+  const { tags, openTag, activeTagId, screen } = useAssessly();
+  const [adding, setAdding] = useState(false);
+
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "center", padding: "16px 14px 7px" }}>
+        <span style={{ flex: 1, fontSize: 10.5, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,.34)" }}>TAGS</span>
+        <HBtn
+          onClick={() => setAdding(true)}
+          style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,.08)", color: "rgba(255,255,255,.75)", border: "none", borderRadius: 7, cursor: "pointer" }}
+          hover={{ background: "rgba(255,255,255,.16)", color: "#fff" }}
+          title="New tag"
+        >
+          <IconPlus s={15} />
+        </HBtn>
+      </div>
+
+      {adding && <TagModal onClose={() => setAdding(false)} />}
+
+      {tags.length === 0 && !adding && (
+        <HBtn
+          onClick={() => setAdding(true)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "10px 14px", marginTop: 2, background: "transparent", border: "1px dashed rgba(255,255,255,.2)", borderRadius: 11, color: "rgba(255,255,255,.55)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+          hover={{ background: "rgba(255,255,255,.06)", border: "1px dashed rgba(255,255,255,.35)", color: "#fff" }}
+        >
+          <IconPlus s={15} />
+          Create Tag
+        </HBtn>
+      )}
+
+      <div style={{ maxHeight: 220, overflowY: "auto" }}>
+        {tags.map((t) => {
+          const on = screen === "tag" && activeTagId === t.id;
+          return (
+            <HBox
+              key={t.id}
+              onClick={() => openTag(t.id)}
+              style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 11, cursor: "pointer", marginBottom: 3, background: on ? "rgba(255,255,255,.1)" : "transparent" }}
+              hover={on ? undefined : { background: "rgba(255,255,255,.06)" }}
+            >
+              <TagDot color={t.color} s={10} />
+              <span style={{ flex: 1, fontSize: 15, fontWeight: on ? 700 : 600, color: on ? "#fff" : "rgba(255,255,255,.62)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.5)" }}>{t.items.length}</span>
+            </HBox>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/** Today's estimated token spend vs the daily budget, shown above the user
+ *  card. Mirrors the enforcement in POST /api/generate (see lib/limits.ts);
+ *  errored runs are excluded there too, so the two stay in step. */
+function UsageSection({ runs }: { runs: PastRunSummary[] }) {
+  const now = new Date();
+  const today = runs.filter((r) => {
+    if (r.status === "error") return false;
+    const d = new Date(r.started_at);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  });
+  const questions = today.reduce((t, r) => t + (r.count || 0), 0);
+  const used = questions * EST_TOKENS_PER_QUESTION;
+  const pct = Math.min(100, Math.round((used / DAILY_TOKEN_BUDGET) * 100));
+  const barColor = pct >= 90 ? "#C0454B" : pct >= 70 ? "#E0A93B" : C.green;
+  const fmt = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : `${Math.round(n / 1_000)}k`);
+
+  return (
+    <div style={{ padding: "2px 8px 14px" }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 7 }}>
+        <span style={{ flex: 1, fontSize: 10.5, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,.34)" }}>DAILY TOKENS (EST.)</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.55)" }}>{fmt(used)} / {fmt(DAILY_TOKEN_BUDGET)}</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 100, background: "rgba(255,255,255,.1)", overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 100, background: barColor }} />
+      </div>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)", marginTop: 6 }}>
+        {today.length} generation{today.length === 1 ? "" : "s"} · {questions} questions today
+      </div>
+    </div>
+  );
+}
+
 export function Sidebar() {
-  const { runs, user, signOut, userMenuOpen, setUserMenuOpen, finalisedIds, publishedIds } = useAssessly();
+  const { runs, user, signOut, userMenuOpen, setUserMenuOpen, finalisedIds, viewTeam, setViewTeam } = useAssessly();
 
   const ongoingCount = runs.filter(isOngoing).length;
   const awaitingCount = runs.filter((r) => r.status === "done" && !finalisedIds.has(r.id)).length;
-  const finalisedCount = runs.filter((r) => r.status === "done" && finalisedIds.has(r.id) && !publishedIds.has(r.id)).length;
+  const finalisedCount = runs.filter((r) => r.status === "done" && finalisedIds.has(r.id)).length;
 
   const name = user?.name ?? "Member";
   const initials = name.split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase() || "M";
@@ -87,9 +173,14 @@ export function Sidebar() {
       <NavLink screen="finalised" icon={<IconCheck s={22} sw={1.7} />} label="Finalised Banks" badge={finalisedCount || undefined} badgeColor={C.green} />
 
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,.34)", padding: "16px 14px 7px" }}>ADMIN LIBRARY</div>
-      <NavLink screen="banks" icon={<IconBank s={22} sw={1.7} />} label="Question Banks" trailingLock />
+      <NavLink screen="banks" icon={<IconBank s={22} sw={1.7} />} label="Question Banks" />
 
-      <div style={{ marginTop: "auto", position: "relative", paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.1)" }}>
+      <TagsSection />
+
+      <div style={{ marginTop: "auto" }}>
+        <UsageSection runs={runs} />
+      </div>
+      <div style={{ position: "relative", paddingTop: 14, borderTop: "1px solid rgba(255,255,255,.1)" }}>
         <HBox
           onClick={() => setUserMenuOpen(!userMenuOpen)}
           style={{ padding: 8, borderRadius: 12, display: "flex", alignItems: "center", gap: 11, cursor: "pointer" }}
@@ -115,6 +206,31 @@ export function Sidebar() {
                 <div style={{ color: "rgba(255,255,255,.5)", fontSize: 11, marginTop: 2 }}>{user?.team} team</div>
               </div>
               <div style={{ height: 1, background: "rgba(255,255,255,.08)", margin: "0 10px 5px" }} />
+              {/* Team switcher — hidden for single-team members; picks which granted
+                  team's data the workspace shows. */}
+              {user && user.teams.length > 1 && (
+                <>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,.34)", padding: "6px 12px 4px" }}>TEAM</div>
+                  {user.teams.map((t) => {
+                    const active = (viewTeam ?? user.teams[0]) === t;
+                    return (
+                      <HBox
+                        key={t}
+                        onClick={() => {
+                          setViewTeam(t);
+                          setUserMenuOpen(false);
+                        }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 9, cursor: "pointer", color: active ? "#fff" : "rgba(255,255,255,.72)", fontSize: 13.5, fontWeight: active ? 700 : 500, background: active ? "rgba(255,255,255,.08)" : "transparent", marginBottom: 2 }}
+                        hover={active ? undefined : { background: "rgba(255,255,255,.06)" }}
+                      >
+                        <span style={{ flex: 1 }}>{t}</span>
+                        {active && <IconCheck s={15} sw={2.2} />}
+                      </HBox>
+                    );
+                  })}
+                  <div style={{ height: 1, background: "rgba(255,255,255,.08)", margin: "5px 10px" }} />
+                </>
+              )}
               <HBox onClick={signOut} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 12px", borderRadius: 9, cursor: "pointer", color: "#fff", fontSize: 13.5, fontWeight: 500 }} hover={{ background: "rgba(255,255,255,.08)" }}>
                 <IconLogout s={17} />
                 Sign out

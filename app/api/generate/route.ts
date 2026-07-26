@@ -2,6 +2,8 @@ import { NextRequest, after } from "next/server";
 import { SSEStream } from "@/lib/sse";
 import { runWorkflow } from "@/lib/runner";
 import { getUserTeam } from "@/lib/team";
+import { supabaseAdmin } from "@/lib/supabase";
+import { DAILY_QUESTION_LIMIT } from "@/lib/limits";
 import type { GenerateRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -28,8 +30,9 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Scope the run to the signed-in user's team (server-trusted, not client-set).
-  const { team } = await getUserTeam(req);
+  // Scope the run to the signed-in user's team and stamp who started it
+  // (server-trusted, not client-set).
+  const { team, userId, name } = await getUserTeam(req);
   if (!team) {
     return new Response(JSON.stringify({ error: "not authenticated" }), {
       status: 401,
@@ -37,6 +40,31 @@ export async function POST(req: NextRequest) {
     });
   }
   body.team = team;
+  body.created_by = userId;
+  body.created_by_name = name;
+
+  // Enforce the team's daily generation budget before spending tokens.
+  // Errored runs are excluded — they fail before consuming anything meaningful.
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const { data: todays, error: usageErr } = await supabaseAdmin()
+    .from("runs")
+    .select("count")
+    .eq("team", team)
+    .neq("status", "error")
+    .gte("started_at", dayStart.toISOString());
+  if (!usageErr) {
+    const used = (todays ?? []).reduce((t, r) => t + (r.count ?? 0), 0);
+    const requested = Math.max(1, body.count ?? 0);
+    if (used + requested > DAILY_QUESTION_LIMIT) {
+      return new Response(
+        JSON.stringify({
+          error: `Daily limit reached: your team has generated ${used} of ${DAILY_QUESTION_LIMIT} questions today. Try again tomorrow or reduce the question count.`,
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } },
+      );
+    }
+  }
 
   const stream = new SSEStream();
 

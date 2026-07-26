@@ -3,7 +3,7 @@ import "./globals.css";
 import "./assessly.css";
 
 export const metadata: Metadata = {
-  title: "Assessly — Mercer | Mettl",
+  title: "Gen AI Content — Mercer | Mettl",
   description: "Generate, ground, plag-check, and verify original MCQs with Claude.",
 };
 

@@ -4,13 +4,16 @@ import { C } from "./theme";
 import { IconCheck } from "./icons";
 import { AssesslyProvider, useAssessly } from "./store";
 import { Login } from "./Login";
+import { SetPassword } from "./SetPassword";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { Dashboard, Finalised, Generated, Ongoing } from "./screens/Pipeline";
+import { FinalisedRun } from "./screens/FinalisedRun";
 import { Banks, BankDetail } from "./screens/Banks";
 import { Review } from "./screens/Review";
+import { Scratch } from "./screens/Scratch";
+import { TagScreen } from "./Tags";
 import { GenerateModal } from "./GenerateModal";
-import { ScratchModal } from "./ScratchModal";
 
 export function AssesslyApp() {
   return (
@@ -21,7 +24,7 @@ export function AssesslyApp() {
 }
 
 function Shell() {
-  const { loggedIn, authReady, screen } = useAssessly();
+  const { loggedIn, authReady, screen, user } = useAssessly();
 
   if (!authReady) {
     return <div className="assessly-root" style={{ display: "flex", alignItems: "center", justifyContent: "center" }} />;
@@ -31,6 +34,17 @@ function Shell() {
     return (
       <div className="assessly-root">
         <Login />
+        <Toast />
+      </div>
+    );
+  }
+
+  // Signed in but still on the shared bootstrap password: force a private one
+  // before anything else in the workspace is reachable.
+  if (user?.mustReset) {
+    return (
+      <div className="assessly-root">
+        <SetPassword />
         <Toast />
       </div>
     );
@@ -47,14 +61,18 @@ function Shell() {
             {screen === "ongoing" && <Ongoing />}
             {screen === "generated" && <Generated />}
             {screen === "finalised" && <Finalised />}
+            {screen === "finalisedRun" && <FinalisedRun />}
             {screen === "banks" && <Banks />}
             {screen === "bank" && <BankDetail />}
             {screen === "review" && <Review />}
+            {screen === "tag" && <TagScreen />}
+            {/* deep link /create → dashboard behind the wizard modal */}
+            {screen === "scratch" && <Dashboard />}
           </main>
         </div>
       </div>
       <GenerateModal />
-      <ScratchModal />
+      <Scratch />
       <Toast />
     </div>
   );

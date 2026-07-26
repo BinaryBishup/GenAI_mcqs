@@ -61,6 +61,10 @@ export function Login() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={LOGO} alt="Marsh Mercer Mettl" style={{ height: 40, display: "block" }} />
         </div>
+        <div style={{ position: "relative", marginTop: 22, textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#fff", letterSpacing: "-.3px" }}>Gen AI Content</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,.55)", marginTop: 5 }}>Generate, review and finalise question banks with AI.</div>
+        </div>
       </div>
 
       {/* form panel */}

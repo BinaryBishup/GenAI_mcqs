@@ -40,19 +40,10 @@ NONE
 
 Here is the question:`;
 
-const FORCE_HEADER = `You are drawing the figure that a multiple-choice question refers to. The question was written to be answered by reading a diagram, so you MUST output ONE self-contained inline SVG — NEVER output NONE.
-
-Read the stem carefully and draw EXACTLY the structure it specifies (the precise tree/graph/linked-list nodes and values, the flowchart steps, the network/architecture components and connections, the geometry figure, or the chart). The figure must match the stem exactly, add no information the stem omits, and be sufficient to answer the question.
-${SVG_RULES}
-
-Output ONLY the <svg>...</svg> element — no prose.
-
-Here is the question:`;
-
-function buildDecidePrompt(args: { question: string; options: string[]; difficulty: string; instruction?: string; force?: boolean }): string {
+function buildDecidePrompt(args: { question: string; options: string[]; difficulty: string; instruction?: string }): string {
   const opts = args.options.map((o, i) => `  ${String.fromCharCode(65 + i)}. ${o}`).join("\n");
   const extra = args.instruction?.trim() ? `\n\nExtra guidance for the diagram: ${args.instruction.trim()}` : "";
-  return `${args.force ? FORCE_HEADER : DECIDE_HEADER}
+  return `${DECIDE_HEADER}
 
 Difficulty: ${args.difficulty}
 Question: ${args.question}
@@ -111,8 +102,6 @@ export async function generateDiagram(args: {
   model: string;
   instruction?: string;
   existingSvg?: string;
-  /** Force a diagram even for borderline questions — never returns NONE. */
-  force?: boolean;
 }): Promise<string | null> {
   try {
     const revising = !!(args.existingSvg && args.instruction?.trim());

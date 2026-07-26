@@ -1,24 +1,46 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { C, diffStyle, optView, titleCase } from "../theme";
 import { HBtn, HBox, HInput, Spinner } from "../ui";
-import { IconBank, IconBook, IconChevLeft, IconChevRight, IconChevUp, IconFolder, IconSearch, IconUpload } from "../icons";
+import { IconBank, IconBook, IconCheck, IconChevLeft, IconChevRight, IconFolder, IconLock, IconPencil, IconSearch, IconUpload, IconX } from "../icons";
 import { useAssessly } from "../store";
 import { UploadBankModal } from "../UploadBankModal";
-import { fetchAdminInventory, fetchTopic } from "@/lib/api";
-import { timeAgo } from "../theme";
-import type { AdminBank, Difficulty, SampleTopic } from "@/lib/types";
+import { TagPicker } from "../Tags";
+import { fetchTopic, renameSample } from "@/lib/api";
+import type { Difficulty, SampleTopic } from "@/lib/types";
 
 type BanksTab = "local" | "admin";
 
 // ============================ BANK TREE ============================
 export function Banks() {
-  const { catalog, catalogLoading, bankNav, setBankNav, openBankFolder, openBank, refreshCatalog, toast } = useAssessly();
+  const { catalog, catalogLoading, bankNav, setBankNav, openBankFolder, openBank, refreshCatalog, refreshTags, toast } = useAssessly();
   const [tab, setTab] = useState<BanksTab>("local");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [search, setSearch] = useState("");
+  // Inline rename of one bank row: which filename is being edited + draft value.
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameVal, setRenameVal] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
   const q = search.trim().toLowerCase();
+
+  const saveRename = async () => {
+    const n = renameVal.trim();
+    if (!renaming || renameBusy) return;
+    if (!n || n === renaming) { setRenaming(null); return; }
+    setRenameBusy(true);
+    try {
+      await renameSample(renaming, n);
+      setRenaming(null);
+      refreshCatalog();
+      refreshTags();
+      toast(`Renamed to "${n}"`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Rename failed.");
+    } finally {
+      setRenameBusy(false);
+    }
+  };
 
   // group catalog by topic → folder; each file = a leaf bank
   const folders = useMemo(() => {
@@ -65,7 +87,7 @@ export function Banks() {
           })}
         </div>
         <span style={{ fontSize: 12.5, color: C.muted, flex: 1 }}>
-          {tab === "local" ? "Your team's question banks. Upload more, browse, and use them when generating." : "Shared inventory — finalised sets that any team has published to the Admin pool."}
+          {tab === "local" ? "Your team's question banks. Upload more, browse, and use them when generating." : "Shared Mettl admin inventory — connected via the Mettl API."}
         </span>
         {tab === "local" && (
           <HBtn onClick={() => setUploadOpen(true)} style={{ height: 40, padding: "0 16px", background: C.navy, color: "#fff", border: "none", borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }} hover={{ background: C.navyHover }}>
@@ -75,7 +97,18 @@ export function Banks() {
       </div>
 
       {tab === "admin" ? (
-        <AdminInventory />
+        <div style={{ background: "#fff", border: "1px solid #E9EDF1", borderRadius: 14, padding: "56px 24px", textAlign: "center" }}>
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: "#EEF2F6", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+            <IconBank s={24} stroke={C.slate2} />
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>Mettl admin inventory</div>
+          <div style={{ fontSize: 13.5, color: C.muted, marginTop: 6, maxWidth: 440, marginLeft: "auto", marginRight: "auto", lineHeight: 1.55 }}>
+            The shared admin question inventory will appear here once the Mettl admin API is connected. For now, use your team's <b style={{ color: C.slate }}>Local</b> banks.
+          </div>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 16, fontSize: 11.5, fontWeight: 700, padding: "6px 12px", borderRadius: 100, color: C.slate2, background: "#EEF1F5" }}>
+            <IconLock s={13} />Not connected yet
+          </span>
+        </div>
       ) : (
       <>
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14, flexWrap: "wrap" }}>
@@ -113,17 +146,49 @@ export function Banks() {
           </HBox>
         ))}
 
-        {leafRows.map((b) => (
-          <HBox key={b.name} onClick={() => openBank(b.name)} style={{ display: "flex", alignItems: "center", gap: 13, padding: "15px 22px", cursor: "pointer", borderBottom: "1px solid #F0F3F6" }} hover={{ background: "#F7F9FC" }}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: "#E1E8F4", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IconBook s={17} stroke={C.navy} /></div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14.5, fontWeight: 700, color: C.navy, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{b.name}</div>
-              <div style={{ fontSize: 11, color: C.faint, marginTop: 2 }}>{b.showChain ? `${b.chain} · ` : ""}Uploaded by {b.by || "—"}</div>
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.slate2, whiteSpace: "nowrap" }}>{b.q} Qs</span>
-            <IconChevRight s={16} stroke="#C3C9D2" sw={2} />
-          </HBox>
-        ))}
+        {leafRows.map((b) => {
+          const editing = renaming === b.name;
+          return (
+            <HBox key={b.name} onClick={() => { if (!editing) openBank(b.name); }} style={{ display: "flex", alignItems: "center", gap: 13, padding: "15px 22px", cursor: editing ? "default" : "pointer", borderBottom: "1px solid #F0F3F6" }} hover={editing ? undefined : { background: "#F7F9FC" }}>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: "#E1E8F4", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IconBook s={17} stroke={C.navy} /></div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {editing ? (
+                  <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <HInput
+                      value={renameVal}
+                      autoFocus
+                      onChange={(e) => setRenameVal(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveRename(); if (e.key === "Escape") setRenaming(null); }}
+                      style={{ flex: 1, height: 36, border: "1.5px solid #C9D4E6", borderRadius: 9, padding: "0 11px", fontSize: 13.5, fontWeight: 600, color: C.navy, background: "#fff", minWidth: 0 }}
+                      focusStyle={{ borderColor: C.navy, outline: "none" }}
+                    />
+                    <HBtn onClick={saveRename} disabled={renameBusy || !renameVal.trim()} title="Save" style={{ height: 32, width: 32, display: "flex", alignItems: "center", justifyContent: "center", background: C.navy, color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", flexShrink: 0 }} hover={{ background: C.navyHover }}>
+                      <IconCheck s={14} sw={2.4} />
+                    </HBtn>
+                    <HBtn onClick={() => setRenaming(null)} title="Cancel" style={{ height: 32, width: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", color: C.slate, border: "1.5px solid #E3E8ED", borderRadius: 8, cursor: "pointer", flexShrink: 0 }} hover={{ borderColor: "#C8D2DC" }}>
+                      <IconX s={14} />
+                    </HBtn>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 14.5, fontWeight: 700, color: C.navy, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{b.name}</div>
+                    <div style={{ fontSize: 11, color: C.faint, marginTop: 2 }}>{b.showChain ? `${b.chain} · ` : ""}Uploaded by {b.by || "—"}</div>
+                  </>
+                )}
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.slate2, whiteSpace: "nowrap" }}>{b.q} Qs</span>
+              {!editing && (
+                <span onClick={(e) => e.stopPropagation()}>
+                  <HBtn onClick={() => { setRenaming(b.name); setRenameVal(b.name); }} title="Rename bank" style={{ height: 30, width: 30, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", color: C.slate2, border: "1.5px solid #E3E8ED", borderRadius: 8, cursor: "pointer" }} hover={{ borderColor: C.navy, color: C.navy }}>
+                    <IconPencil s={14} />
+                  </HBtn>
+                </span>
+              )}
+              <TagPicker itemType="sample" itemId={b.name} compact />
+              <IconChevRight s={16} stroke="#C3C9D2" sw={2} />
+            </HBox>
+          );
+        })}
 
         {empty && (
           <div style={{ padding: 30, textAlign: "center", color: C.faint, fontSize: 13 }}>
@@ -139,86 +204,6 @@ export function Banks() {
         onClose={() => setUploadOpen(false)}
         onUploaded={(r) => { refreshCatalog(); toast(`Uploaded ${r.inserted} questions to ${r.topic}`); }}
       />
-    </div>
-  );
-}
-
-// ============================ ADMIN INVENTORY ============================
-// The shared pool: finalised sets that any team has published. Read-only; click
-// a set to expand its questions inline.
-function AdminInventory() {
-  const [banks, setBanks] = useState<AdminBank[] | null>(null);
-  const [err, setErr] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    fetchAdminInventory()
-      .then((r) => { if (alive) setBanks(r.banks); })
-      .catch(() => { if (alive) setErr(true); });
-    return () => { alive = false; };
-  }, []);
-
-  const shell = (child: ReactNode) => (
-    <div style={{ background: "#fff", border: "1px solid #E9EDF1", borderRadius: 14, padding: "48px 24px", textAlign: "center" }}>{child}</div>
-  );
-
-  if (err) return shell(<div style={{ fontSize: 13.5, color: C.muted }}>Couldn&apos;t load the Admin inventory. Try again shortly.</div>);
-  if (!banks) return shell(<Spinner size={18} />);
-  if (!banks.length) return shell(
-    <>
-      <div style={{ width: 52, height: 52, borderRadius: 14, background: "#EEF2F6", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><IconBank s={24} stroke={C.slate2} /></div>
-      <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>Nothing published yet</div>
-      <div style={{ fontSize: 13.5, color: C.muted, marginTop: 6, maxWidth: 460, margin: "6px auto 0", lineHeight: 1.55 }}>
-        Finalise a reviewed set, then <b style={{ color: C.slate }}>Shift to Admin Pool</b> from Finalised Banks — it&apos;ll appear here for every team.
-      </div>
-    </>,
-  );
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {banks.map((b) => {
-        const open = openId === b.id;
-        const dd = diffStyle(b.difficulty);
-        return (
-          <div key={b.id} style={{ background: "#fff", border: "1px solid #E9EDF1", borderRadius: 14, overflow: "hidden" }}>
-            <HBox onClick={() => setOpenId(open ? null : b.id)} style={{ display: "flex", alignItems: "center", gap: 13, padding: "15px 20px", cursor: "pointer" }} hover={{ background: "#F7F9FC" }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: "#E1E8F4", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><IconBank s={17} stroke={C.navy} /></div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14.5, fontWeight: 700, color: C.navy, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{b.topic}</div>
-                <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2, display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                  {b.team && <span style={{ fontWeight: 700, color: C.slate2 }}>{b.team}</span>}
-                  <span style={{ fontWeight: 700, color: dd.fg, background: dd.bg, borderRadius: 6, padding: "1px 7px" }}>{titleCase(b.difficulty)}</span>
-                  <span>Published by {b.published_by || "—"}{b.published_at ? ` · ${timeAgo(b.published_at)}` : ""}</span>
-                </div>
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.slate2, whiteSpace: "nowrap" }}>{b.count} Qs</span>
-              {open ? <IconChevUp s={17} stroke={C.muted} sw={1.9} /> : <IconChevRight s={16} stroke="#C3C9D2" sw={2} />}
-            </HBox>
-            {open && (
-              <div style={{ borderTop: "1px solid #F0F3F6", padding: "6px 20px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-                {b.questions.map((m, idx) => {
-                  const opts = optView(m.options, m.correct_index, false, true);
-                  return (
-                    <div key={idx} style={{ paddingTop: 14 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, lineHeight: 1.45 }}>Q{idx + 1}. {m.question}</div>
-                      {m.image_svg && <div style={{ marginTop: 10 }} dangerouslySetInnerHTML={{ __html: m.image_svg }} />}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
-                        {opts.map((o) => (
-                          <div key={o.letter} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 9, fontSize: 13, color: o.fg, background: o.bg, border: `1px solid ${o.bd}` }}>
-                            <div style={{ width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${o.dotBd}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: o.dotFg, fontSize: 11, fontWeight: 700 }}>{o.letter}</div>
-                            {o.text}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }
