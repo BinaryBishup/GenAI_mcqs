@@ -313,6 +313,8 @@ export function Review() {
 
   const confirmReject = useCallback(() => {
     if (rejectIdx === null) return;
+    // A reason is mandatory — it's the feedback signal that improves generation.
+    if (!rejectReason.trim()) { toast("Add a reason (or tap a chip) to reject"); return; }
     patch(rejectIdx, (it) => ({ ...it, status: "rejected", rejectReason: rejectReason.trim() }));
     persistDecision(rejectIdx, "rejected", rejectReason.trim());
     setRejectOpen(false);
@@ -628,7 +630,8 @@ export function Review() {
                 {items.find((i) => i.index === rejectIdx)?.mcq.question}
               </div>
               <label style={{ fontSize: 12.5, fontWeight: 700, color: C.slate, display: "block", marginBottom: 8 }}>
-                Why are you rejecting this? <span style={{ color: C.faint, fontWeight: 500 }}>· feedback sharpens the regeneration</span>
+                Why are you rejecting this? <span style={{ color: "#C0454B", fontWeight: 700 }}>*</span>{" "}
+                <span style={{ color: C.faint, fontWeight: 500 }}>· required — feedback sharpens the regeneration</span>
               </label>
               <HTextarea
                 value={rejectReason}
@@ -649,7 +652,13 @@ export function Review() {
               <button onClick={() => setRejectOpen(false)} style={{ height: 42, padding: "0 16px", background: "#fff", border: "1.5px solid #E3E8ED", color: C.slate, borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
                 Cancel
               </button>
-              <HBtn onClick={confirmReject} style={{ height: 42, padding: "0 18px", background: "#C0454B", color: "#fff", border: "none", borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }} hover={{ background: "#A53A40" }}>
+              <HBtn
+                onClick={confirmReject}
+                disabled={!rejectReason.trim()}
+                title={rejectReason.trim() ? undefined : "Add a reason (or tap a chip) to reject"}
+                style={{ height: 42, padding: "0 18px", background: rejectReason.trim() ? "#C0454B" : "#E9C2C5", color: "#fff", border: "none", borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: rejectReason.trim() ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 7 }}
+                hover={rejectReason.trim() ? { background: "#A53A40" } : undefined}
+              >
                 <IconX s={15} sw={2} />
                 Reject &amp; move down
               </HBtn>
