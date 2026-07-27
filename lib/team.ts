@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { supabaseAdmin } from "./supabase";
+import { supabaseAuthAdmin } from "./supabase";
 import { TEAMS, type Team } from "./types";
 
 /** Header the client sends to pick which of its visible teams a request is scoped to. */
@@ -30,7 +30,7 @@ export async function getUserTeam(req: NextRequest): Promise<{ team: Team | null
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   if (!token) return { team: null, teams: [], userId: null, name: null };
   try {
-    const { data, error } = await supabaseAdmin().auth.getUser(token);
+    const { data, error } = await supabaseAuthAdmin().auth.getUser(token);
     if (error || !data.user) return { team: null, teams: [], userId: null, name: null };
     const meta = (data.user.user_metadata ?? {}) as { team?: string; teams?: string[]; full_name?: string };
     const teams = visibleTeams(meta);
