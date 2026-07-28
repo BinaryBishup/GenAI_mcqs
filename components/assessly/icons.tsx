@@ -182,3 +182,16 @@ export const IconImage = (p: P) => (
     <path d="M3.5 13l4-4 3.5 3 2-1.5 2 2" />
   </S>
 );
+export const IconHelp = (p: P) => (
+  <S {...p}>
+    <circle cx="9" cy="9" r="7" />
+    <path d="M6.8 6.8a2.2 2.2 0 013.9 1.4c0 1.3-1.7 1.7-1.7 2.8" />
+    <circle cx="9" cy="13.1" r="0.4" fill="currentColor" stroke="none" />
+  </S>
+);
+export const IconChat = (p: P) => (
+  <S {...p}>
+    <path d="M15.5 11.5a1.5 1.5 0 01-1.5 1.5H6l-3.5 3V4a1.5 1.5 0 011.5-1.5h10A1.5 1.5 0 0115.5 4z" />
+    <path d="M6 7h6M6 10h4" />
+  </S>
+);

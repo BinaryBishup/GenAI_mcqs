@@ -12,6 +12,8 @@ import { FinalisedRun } from "./screens/FinalisedRun";
 import { Banks, BankDetail } from "./screens/Banks";
 import { Review } from "./screens/Review";
 import { Scratch } from "./screens/Scratch";
+import { Faqs } from "./screens/Faqs";
+import { Feedback } from "./screens/Feedback";
 import { TagScreen } from "./Tags";
 import { GenerateModal } from "./GenerateModal";
 
@@ -66,6 +68,8 @@ function Shell() {
             {screen === "bank" && <BankDetail />}
             {screen === "review" && <Review />}
             {screen === "tag" && <TagScreen />}
+            {screen === "faqs" && <Faqs />}
+            {screen === "feedback" && <Feedback />}
             {/* deep link /create → dashboard behind the wizard modal */}
             {screen === "scratch" && <Dashboard />}
           </main>

@@ -13,6 +13,8 @@ const TITLES: Record<string, { title: string }> = {
   finalised: { title: "Finalised Banks" },
   banks: { title: "Question Banks" },
   scratch: { title: "Team workspace" },
+  faqs: { title: "FAQs & Help" },
+  feedback: { title: "Feedback" },
 };
 
 function PrimaryActions() {

@@ -85,7 +85,9 @@ export type Screen =
   | "bank"
   | "review"
   | "tag"
-  | "scratch";
+  | "scratch"
+  | "faqs"
+  | "feedback";
 
 // ---- URL routing ---------------------------------------------------------
 // Every screen has a real path so views are shareable/bookmarkable and the
@@ -122,6 +124,8 @@ export function pathForRoute(input: RouteInput): string {
     case "review": return `/generation/${encodeURIComponent(r.reviewRunId ?? "")}`;
     case "tag": return `/tag/${encodeURIComponent(r.activeTagId ?? "")}`;
     case "scratch": return "/create";
+    case "faqs": return "/faqs";
+    case "feedback": return "/feedback";
     default: return "/";
   }
 }
@@ -136,6 +140,8 @@ export function parsePath(pathname: string): Route {
   if (head === "generation" && segs[1]) return fullRoute({ screen: "review", reviewRunId: segs[1] });
   if (head === "tag" && segs[1]) return fullRoute({ screen: "tag", activeTagId: segs[1] });
   if (head === "create") return fullRoute({ screen: "scratch" });
+  if (head === "faqs") return fullRoute({ screen: "faqs" });
+  if (head === "feedback") return fullRoute({ screen: "feedback" });
   return fullRoute({ screen: "dashboard" });
 }
 

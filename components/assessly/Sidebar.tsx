@@ -5,8 +5,10 @@ import { C } from "./theme";
 import { HBox, HBtn } from "./ui";
 import {
   IconBank,
+  IconChat,
   IconCheck,
   IconDashboard,
+  IconHelp,
   IconLoop,
   IconLogout,
   IconPlus,
@@ -174,6 +176,10 @@ export function Sidebar() {
 
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,.34)", padding: "16px 14px 7px" }}>ADMIN LIBRARY</div>
       <NavLink screen="banks" icon={<IconBank s={22} sw={1.7} />} label="Question Banks" />
+
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1, color: "rgba(255,255,255,.34)", padding: "16px 14px 7px" }}>SUPPORT</div>
+      <NavLink screen="faqs" icon={<IconHelp s={22} sw={1.7} />} label="FAQs" />
+      <NavLink screen="feedback" icon={<IconChat s={22} sw={1.7} />} label="Feedback" />
 
       <TagsSection />
 

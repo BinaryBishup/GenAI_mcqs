@@ -384,3 +384,39 @@ function parseFrame(frame: string): StreamEvent | null {
     return { type, data };
   }
 }
+
+// ---- Feedback ------------------------------------------------------------
+
+export type FeedbackCategory = "general" | "quality" | "bug" | "feature";
+
+export interface FeedbackItem {
+  id: string;
+  created_at: string;
+  user_name: string | null;
+  category: FeedbackCategory;
+  rating: number | null;
+  message: string;
+}
+
+export async function submitFeedback(input: {
+  category: FeedbackCategory;
+  rating: number | null;
+  message: string;
+  page?: string;
+}): Promise<FeedbackItem> {
+  const res = await fetch("/api/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: JSON.stringify(input),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `feedback failed: ${res.status}`);
+  return data.feedback as FeedbackItem;
+}
+
+export async function fetchFeedback(): Promise<FeedbackItem[]> {
+  const res = await fetch("/api/feedback", { cache: "no-store", headers: await authHeader() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error ?? `feedback list failed: ${res.status}`);
+  return (data.feedback ?? []) as FeedbackItem[];
+}
