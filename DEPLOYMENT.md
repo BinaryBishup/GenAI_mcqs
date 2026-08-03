@@ -12,6 +12,13 @@ Everything else works inside the VPC.
 Next.js itself only requires >= 20, but do not deploy onto an unpatched runtime.
 Security group: 80/443 from anywhere, 22 from your IP only.
 
+`setup-server.sh` also adds a 4 GB swapfile. This is not optional on a t3.medium:
+Ubuntu's AMI has no swap, and `next build` peaks past the free RAM on a 4 GB box,
+so the build gets OOM-killed with a bare `Killed` that reads like a Next.js fault.
+`deploy.sh` additionally caps the build heap at 3 GB (override with `BUILD_HEAP_MB`).
+Note also that t3 is burstable — a cold `npm ci && npm run build` burns CPU credits,
+so back-to-back deploys on a fresh instance will get slower before they get faster.
+
 **RDS Postgres 15/16**: db.t3.small to start, same VPC.
 Security group: 5432 **only from the EC2 security group**. Enable automated
 backups. No extensions to preinstall — the schema creates `pg_trgm` itself.

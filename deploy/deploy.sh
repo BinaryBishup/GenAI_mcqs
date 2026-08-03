@@ -34,7 +34,12 @@ if [[ ! -f .env.production ]]; then
 fi
 
 npm ci
-npm run build
+
+# Cap the build heap below total RAM. On a t3.medium (4 GB) an uncapped V8 sizes
+# its heap off the box and will happily grow until the OOM killer takes it; the
+# cap makes it collect instead. setup-server.sh adds swap for the rest.
+NODE_OPTIONS="--max-old-space-size=${BUILD_HEAP_MB:-3072}" npm run build
+
 pm2 startOrReload ecosystem.config.cjs --update-env
 pm2 save
 REMOTE
