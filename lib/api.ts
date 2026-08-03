@@ -2,47 +2,73 @@ import type {
   GenerateRequest, MCQ, PastRunSummary, SampleCatalog, SamplePreviewResult,
   SampleTopic, ScratchBrief, ScratchChatMsg, ScratchDoc, ScratchInterviewReply,
   ScratchVariant, StreamEvent, Tag, TagItemType,
-} from "./types";
-import { supabaseBrowser } from "./supabase-browser";
+} from "@/lib/types";
 
 /** localStorage key for the team the user is currently viewing (multi-team users). */
-export const LS_VIEW_TEAM = "assessly.viewTeam";
+export const LS_VIEW_TEAM = "smartcogen.viewTeam";
 
-/** Bearer header for the current Supabase session, or {} when signed out. The
- *  server reads the team off this token to scope every request; the
- *  x-assessly-team header picks WHICH of the user's visible teams applies
- *  (validated server-side against the JWT's grants, so it can't escalate). */
-// Shared in-flight refresh so concurrent callers (e.g. the dashboard poller,
-// which dev StrictMode double-mounts) don't race separate refreshSession calls
-// and invalidate each other's token — the cause of intermittent 401s.
-let refreshInFlight: ReturnType<ReturnType<typeof supabaseBrowser>["auth"]["refreshSession"]> | null = null;
-
+/**
+ * Per-request headers for an authenticated call.
+ *
+ * Identity itself needs no header: the session is an httpOnly cookie, which the
+ * browser attaches to every same-origin fetch automatically (and which script
+ * cannot read or forge). All this adds is the x-smartcogen-team header, which
+ * picks WHICH of the user's visible teams the request is scoped to — the server
+ * validates it against the grants in the signed cookie, so it can select among
+ * them but never escalate beyond them.
+ *
+ * Kept async so the ~18 call sites read the same as before.
+ */
 async function authHeader(): Promise<Record<string, string>> {
   try {
-    const supa = supabaseBrowser();
-    const { data } = await supa.auth.getSession();
-    let session = data.session;
-    // The stored access token may be expired (tab idle past its 1h lifetime);
-    // getSession returns it as-is. Refresh when it's missing or within 60s of
-    // expiry, sharing one in-flight refresh across concurrent callers.
-    const expiringSoon = session?.expires_at ? session.expires_at * 1000 < Date.now() + 60_000 : !session;
-    if (expiringSoon) {
-      if (!refreshInFlight) {
-        refreshInFlight = supa.auth.refreshSession();
-        refreshInFlight.finally(() => { refreshInFlight = null; });
-      }
-      const refreshed = await refreshInFlight;
-      session = refreshed.data.session ?? session;
-    }
-    const token = session?.access_token;
-    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     const viewTeam = localStorage.getItem(LS_VIEW_TEAM);
-    if (viewTeam) headers["x-assessly-team"] = viewTeam;
-    return headers;
+    return viewTeam ? { "x-smartcogen-team": viewTeam } : {};
   } catch {
-    return {};
+    return {}; // private mode: fall back to the user's first team grant
   }
 }
+
+// ---------------------------------------------------------------- auth
+
+export interface AuthUserDTO {
+  id: string;
+  email: string;
+  name: string;
+  team: string;
+  teams: string[];
+}
+
+/** Current user from the session cookie, or null when signed out. */
+export async function fetchMe(): Promise<AuthUserDTO | null> {
+  try {
+    const res = await fetch("/api/auth/me", { cache: "no-store" });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body.user ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function login(email: string, password: string): Promise<{ user?: AuthUserDTO; error?: string }> {
+  const res = await fetchWithRetry("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) return { error: body.error ?? `Sign-in failed (${res.status})` };
+  return { user: body.user };
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } catch {
+    /* signing out locally is what matters */
+  }
+}
+
 
 /**
  * `fetch` with a small retry on transport-level failures. It only *throws* on
@@ -383,40 +409,4 @@ function parseFrame(frame: string): StreamEvent | null {
   } catch {
     return { type, data };
   }
-}
-
-// ---- Feedback ------------------------------------------------------------
-
-export type FeedbackCategory = "general" | "quality" | "bug" | "feature";
-
-export interface FeedbackItem {
-  id: string;
-  created_at: string;
-  user_name: string | null;
-  category: FeedbackCategory;
-  rating: number | null;
-  message: string;
-}
-
-export async function submitFeedback(input: {
-  category: FeedbackCategory;
-  rating: number | null;
-  message: string;
-  page?: string;
-}): Promise<FeedbackItem> {
-  const res = await fetch("/api/feedback", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(await authHeader()) },
-    body: JSON.stringify(input),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error ?? `feedback failed: ${res.status}`);
-  return data.feedback as FeedbackItem;
-}
-
-export async function fetchFeedback(): Promise<FeedbackItem[]> {
-  const res = await fetch("/api/feedback", { cache: "no-store", headers: await authHeader() });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error ?? `feedback list failed: ${res.status}`);
-  return (data.feedback ?? []) as FeedbackItem[];
 }

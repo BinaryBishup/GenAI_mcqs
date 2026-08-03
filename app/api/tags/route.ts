@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { getUserTeam } from "@/lib/team";
+import { database } from "@/lib/server/db";
+import { getUserTeam } from "@/lib/server/team";
 
 export const runtime = "nodejs";
 
@@ -10,11 +10,11 @@ export const runtime = "nodejs";
  * Tags are shared across everyone who can view the team.
  */
 export async function GET(req: NextRequest) {
-  const supa = supabaseAdmin();
+  const db = database();
   const { team } = await getUserTeam(req);
   if (!team) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
-  const { data: tags, error } = await supa
+  const { data: tags, error } = await db
     .from("tags")
     .select("id,name,color,created_at")
     .eq("team", team)
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const ids = (tags ?? []).map((t) => t.id);
   const itemsByTag = new Map<string, { item_type: string; item_id: string }[]>();
   if (ids.length) {
-    const { data: items, error: iErr } = await supa
+    const { data: items, error: iErr } = await db
       .from("tag_items")
       .select("tag_id,item_type,item_id")
       .in("tag_id", ids);
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const supa = supabaseAdmin();
+  const db = database();
   const { team, userId } = await getUserTeam(req);
   if (!team) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
   if (name.length > 60) return NextResponse.json({ error: "name too long" }, { status: 400 });
 
-  const { data, error } = await supa
+  const { data, error } = await db
     .from("tags")
     .insert({ team, name, color, created_by: userId })
     .select("id,name,color")

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { database } from "@/lib/server/db";
 
 export const runtime = "nodejs";
 
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const reason = String(body?.reason ?? "").trim() || null;
   const by = String(body?.by ?? "").trim() || null;
 
-  const { error } = await supabaseAdmin()
+  const { error } = await database()
     .from("mcqs")
     .update({
       review_status: status,

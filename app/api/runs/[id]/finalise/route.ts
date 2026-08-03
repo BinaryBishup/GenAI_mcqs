@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { database } from "@/lib/server/db";
 
 export const runtime = "nodejs";
 
@@ -12,9 +12,9 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const by = String((await req.json().catch(() => ({})))?.by ?? "").trim() || null;
-  const supa = supabaseAdmin();
+  const db = database();
 
-  const { data: existing, error: readErr } = await supa
+  const { data: existing, error: readErr } = await db
     .from("runs")
     .select("id,finalised_at")
     .eq("id", id)
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (existing.finalised_at) return NextResponse.json({ ok: true, finalised_at: existing.finalised_at });
 
   const finalised_at = new Date().toISOString();
-  const { error } = await supa
+  const { error } = await db
     .from("runs")
     .update({ finalised_at, finalised_by: by })
     .eq("id", id);

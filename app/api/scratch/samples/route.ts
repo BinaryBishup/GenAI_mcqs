@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { anthropic, extractJson } from "@/lib/anthropic";
+import { llm, extractJson } from "@/lib/ai/llm";
 import { env } from "@/lib/env";
-import { getUserTeam } from "@/lib/team";
-import { SAMPLES_SYSTEM, buildSamplesPrompt, sanitizeBrief } from "@/lib/scratch";
+import { getUserTeam } from "@/lib/server/team";
+import { SAMPLES_SYSTEM, buildSamplesPrompt, sanitizeBrief } from "@/lib/ai/scratch";
 import type { CodeSnippet, Language, ScratchVariant } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -46,24 +46,6 @@ export async function POST(req: NextRequest) {
     const variants = await generateVariants(brief, team, exclude);
     return NextResponse.json({ variants });
   } catch (e) {
-    // Dev-only fallback: local networks that block api.anthropic.com delegate
-    // to the deployed endpoint so the flow stays testable locally.
-    if (process.env.NODE_ENV !== "production") {
-      try {
-        const r = await fetch("https://gen-ai-mcqs.vercel.app/api/scratch/samples", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            authorization: req.headers.get("authorization") ?? "",
-            "x-assessly-team": req.headers.get("x-assessly-team") ?? "",
-          },
-          body: JSON.stringify({ brief, exclude }),
-        });
-        if (r.ok) return NextResponse.json(await r.json());
-      } catch {
-        /* fall through */
-      }
-    }
     return NextResponse.json(
       { error: `sample generation failed: ${e instanceof Error ? e.message : String(e)}` },
       { status: 502 },
@@ -76,15 +58,13 @@ async function generateVariants(
   team: string,
   exclude: string[],
 ): Promise<ScratchVariant[]> {
-  const stream = anthropic().messages.stream({
+  const msg = await llm().complete({
     model: env.modelFor("balanced"),
-    max_tokens: 6000,
+    maxTokens: 6000,
     system: SAMPLES_SYSTEM,
     messages: [{ role: "user", content: buildSamplesPrompt(brief, team, exclude) }],
   });
-  const msg = await stream.finalMessage();
-  const text = msg.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n");
-  const parsed = JSON.parse(extractJson(text));
+  const parsed = JSON.parse(extractJson(msg.text));
   if (!Array.isArray(parsed)) throw new Error("model did not return a JSON array");
 
   const variants = (parsed as unknown[]).map(normalizeVariant).filter((v): v is ScratchVariant => v !== null);

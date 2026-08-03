@@ -1,10 +1,11 @@
--- Consolidated schema for a FRESH Postgres database (RDS or local).
--- Generated from the live production schema (equivalent to supabase/migrations
--- 001–010 applied, minus the pgvector remnants that 002 dropped).
--- Requires: Postgres 13+ (gen_random_uuid built in) and the pg_trgm extension.
+-- Complete schema for a FRESH Postgres database (RDS or local).
+-- Requires: Postgres 13+ (gen_random_uuid is built in) and the pg_trgm extension.
 --
--- For migrating an EXISTING database use pg_dump/pg_restore instead — this
--- file is for standing up a new environment.
+--   psql "$DATABASE_URL" -f deploy/schema.sql     (or: npm run db:schema)
+--
+-- This file is the single source of truth for a new environment. To upgrade an
+-- EXISTING database, apply the files in deploy/migrations/ instead; to move data
+-- between environments, use pg_dump/pg_restore.
 
 create extension if not exists pg_trgm;
 
@@ -81,9 +82,6 @@ create table if not exists mcqs (
   plag_status         text not null default 'pending',
   plag_matches        jsonb not null default '[]'::jsonb,
   plag_attempts       integer not null default 0,
-  code_verified       boolean,
-  code_actual_output  text,
-  code_fix            text,
   created_at          timestamptz not null default now(),
   parent_sample_id    uuid,
   diversity_status    text default 'ok',
@@ -167,26 +165,23 @@ create table if not exists tag_items (
 );
 create index if not exists tag_items_tag_id_idx on tag_items (tag_id);
 
--- ---------- profiles: user→team mapping (Phase 3 auth migration lands here;
---            while auth remains on Supabase this table is unused on RDS) ----------
-create table if not exists profiles (
-  id         uuid primary key,
-  full_name  text,
-  team       text check (team = any (array['HACK','Cognitive','Domain','Psychometric','SEG','ALL'])),
-  created_at timestamptz default now()
+-- ---------- users: accounts, credentials and team grants ----------
+-- The application is its own identity provider. Passwords are bcrypt hashes
+-- (cost 12) written only by lib/auth.ts; sessions are HS256 JWTs signed with
+-- AUTH_JWT_SECRET and held in an httpOnly cookie — nothing is stored here.
+-- Provision accounts with `npm run user:create`.
+create table if not exists users (
+  id                  uuid primary key default gen_random_uuid(),
+  email               text not null,
+  password_hash       text not null,
+  full_name           text,
+  -- Primary team. 'ALL' grants visibility of every team.
+  team                text not null check (team = any (array['HACK','Cognitive','Domain','Psychometric','SEG','ALL'])),
+  -- Extra team grants beyond the primary one (e.g. team 'Cognitive' + {'SEG'}).
+  teams               text[] not null default '{}',
+  is_active           boolean not null default true,
+  created_at          timestamptz not null default now(),
+  last_login_at       timestamptz
 );
-
--- ---- feedback (in-app Feedback screen) ------------------------------------
-create table if not exists feedback (
-  id uuid primary key default gen_random_uuid(),
-  created_at timestamptz not null default now(),
-  team text not null,
-  user_id uuid,
-  user_name text,
-  category text not null default 'general',
-  rating int check (rating between 1 and 5),
-  message text not null,
-  page text
-);
-
-create index if not exists feedback_team_idx on feedback (team, created_at desc);
+-- Case-insensitive uniqueness without requiring the citext extension.
+create unique index if not exists users_email_key on users (lower(email));

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import "./assessly.css";
+import "./smartcogen.css";
 
 export const metadata: Metadata = {
-  title: "Gen AI Content — Mercer | Mettl",
+  title: "SmartCoGen — Mercer | Mettl",
   description: "Generate, ground, plag-check, and verify original MCQs with Claude.",
 };
 

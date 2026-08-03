@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { getUserTeam } from "@/lib/team";
+import { database, type Database } from "@/lib/server/db";
+import { getUserTeam } from "@/lib/server/team";
 
 export const runtime = "nodejs";
 
@@ -10,18 +10,18 @@ export const runtime = "nodejs";
  */
 /**
  * Runs stuck in a non-terminal state longer than this are considered dead —
- * the function was killed (Vercel time limit), the dev server restarted, or the
- * process crashed before the workflow could flip the row to done/error. The
- * window is comfortably longer than any single run can take (maxDuration ceiling
- * is ~13min), so we never mark a genuinely-live run as stale.
+ * the app was restarted (deploy, pm2 reload) or the process crashed before the
+ * workflow could flip the row to done/error. The window is comfortably longer
+ * than any single run can take (the maxDuration ceiling is ~13min), so we never
+ * mark a genuinely-live run as stale.
  */
 const STALE_MS = 20 * 60 * 1000;
 const NON_TERMINAL = ["pending", "generating", "reviewing", "plagchecking", "revamping", "verifying"];
 
 /** Mark abandoned non-terminal runs as errored so the list reflects reality. */
-async function sweepStaleRuns(supa: ReturnType<typeof supabaseAdmin>) {
+async function sweepStaleRuns(db: Database) {
   const cutoff = new Date(Date.now() - STALE_MS).toISOString();
-  await supa
+  await db
     .from("runs")
     .update({
       status: "error",
@@ -34,14 +34,14 @@ async function sweepStaleRuns(supa: ReturnType<typeof supabaseAdmin>) {
 
 export async function GET(req: NextRequest) {
   const source = req.nextUrl.searchParams.get("source");
-  const supa = supabaseAdmin();
+  const db = database();
 
   const { team } = await getUserTeam(req);
   if (!team) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
-  await sweepStaleRuns(supa);
+  await sweepStaleRuns(db);
 
-  let query = supa
+  let query = db
     .from("runs")
     .select("id,status,topic,difficulty,mcq_type,count,quality,started_at,finished_at,error_message,sample_file_ids,team,created_by_name,finalised_at,finalised_by")
     .eq("team", team)

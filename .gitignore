@@ -2,14 +2,9 @@ node_modules/
 .next/
 .env
 .env.local
-.env.*.local
+.env.production
+.env*.local
 *.log
 .DS_Store
-.vercel
 *.tsbuildinfo
 next-env.d.ts
-.env*.local
-deck_assets/
-
-# python venv for notebook testing
-.venv/

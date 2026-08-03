@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { checkAnswer } from "@/lib/answer-check";
+import { database } from "@/lib/server/db";
+import { checkAnswer } from "@/lib/ai/answer-check";
 import type { MCQ } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -30,10 +30,10 @@ export async function PATCH(req: NextRequest) {
   }
   const correct = Math.max(0, Math.min(3, Number(mcq.correct_index ?? 0)));
 
-  const supa = supabaseAdmin();
+  const db = database();
 
   // 1) Persist the editable fields.
-  const { error: updErr } = await supa
+  const { error: updErr } = await db
     .from("mcqs")
     .update({
       type: mcq.type === "code" ? "code" : "general",
@@ -57,7 +57,7 @@ export async function PATCH(req: NextRequest) {
 
   // Best-effort persist of the verdict (columns exist only after migration 003).
   try {
-    const { error } = await supa
+    const { error } = await db
       .from("mcqs")
       .update({
         answer_check_status: check.status,

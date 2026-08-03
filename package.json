@@ -1,26 +1,32 @@
 {
-  "name": "mcq-web",
+  "name": "smartcogen",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "seed:samples": "tsx scripts/seed-samples.ts",
     "build:corpus": "tsx scripts/build-corpus.ts",
-    "db:dump": "tsx scripts/dump-db.ts",
-    "db:restore": "tsx scripts/restore-db.ts"
+    "db:schema": "psql \"$DATABASE_URL\" -f deploy/schema.sql",
+    "user:create": "tsx scripts/user.ts create",
+    "user:list": "tsx scripts/user.ts list",
+    "user:passwd": "tsx scripts/user.ts passwd",
+    "user:disable": "tsx scripts/user.ts disable",
+    "user:enable": "tsx scripts/user.ts enable"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",
     "@remixicon/react": "^4.9.0",
-    "@supabase/supabase-js": "^2.47.10",
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fuzzball": "^2.2.6",
-    "lucide-react": "^0.471.0",
+    "jose": "^6.2.5",
     "mammoth": "^1.12.0",
     "next": "^15.1.4",
     "pg": "^8.22.0",

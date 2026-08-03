@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { parseWorkbookBuffer, type SampleRow } from "@/lib/xls-parse";
-import { sanitizeSourceName, uniqueSourceFile } from "@/lib/sample-source";
-import { getUserTeam } from "@/lib/team";
+import { database } from "@/lib/server/db";
+import { parseWorkbookBuffer, type SampleRow } from "@/lib/banks/xls-parse";
+import { sanitizeSourceName, uniqueSourceFile } from "@/lib/banks/sample-source";
+import { getUserTeam } from "@/lib/server/team";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,13 +44,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "file too large (max 10 MB)" }, { status: 400 });
   }
 
-  const supa = supabaseAdmin();
+  const db = database();
 
   // Use the topic as the unique source_file key so the catalog groups by it
   // and the user controls the displayed name. De-dupe against existing files.
   const ext = file.name.toLowerCase().endsWith(".xlsx") ? ".xlsx" : ".xls";
   const baseSource = `${sanitizeSourceName(topicRaw)}${ext}`;
-  const sourceFile = await uniqueSourceFile(supa, baseSource, ext);
+  const sourceFile = await uniqueSourceFile(db, baseSource, ext);
 
   let rows: SampleRow[];
   try {
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   // Insert in chunks (Postgres parameter limits on big workbooks), stamping the team.
   for (let i = 0; i < rows.length; i += 200) {
     const chunk = rows.slice(i, i + 200).map((r) => ({ ...r, team, uploaded_by: name }));
-    const { error } = await supa.from("samples").insert(chunk);
+    const { error } = await db.from("samples").insert(chunk);
     if (error) {
       return NextResponse.json({ error: `insert failed: ${error.message}` }, { status: 500 });
     }

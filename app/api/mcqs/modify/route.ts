@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { anthropic, extractJson } from "@/lib/anthropic";
+import { llm, extractJson } from "@/lib/ai/llm";
 import { env } from "@/lib/env";
-import { buildModifyPrompt } from "@/lib/prompts";
+import { buildModifyPrompt } from "@/lib/ai/prompts";
 import type { Language, MCQ } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -43,13 +43,12 @@ export async function POST(req: NextRequest) {
   });
 
   try {
-    const msg = await anthropic().messages.create({
+    const msg = await llm().complete({
       model: env.modelFor("balanced"),
-      max_tokens: 2000,
+      maxTokens: 2000,
       messages: [{ role: "user", content: prompt }],
     });
-    const text = msg.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("\n");
-    const obj = JSON.parse(extractJson(text));
+    const obj = JSON.parse(extractJson(msg.text));
 
     const options = Array.isArray(obj.options) ? obj.options.map(String).slice(0, 4) : mcq.options;
     while (options.length < 4) options.push("");

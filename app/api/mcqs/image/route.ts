@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { database } from "@/lib/server/db";
 import { env } from "@/lib/env";
-import { generateDiagram } from "@/lib/diagram";
-import { getUserTeam } from "@/lib/team";
+import { generateDiagram } from "@/lib/ai/diagram";
+import { getUserTeam } from "@/lib/server/team";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "run_id and index are required" }, { status: 400 });
   }
 
-  const supa = supabaseAdmin();
-  const { data: mcq, error } = await supa
+  const db = database();
+  const { data: mcq, error } = await db
     .from("mcqs")
     .select("question,options,difficulty,image_svg")
     .eq("run_id", run_id)
@@ -49,6 +49,6 @@ export async function POST(req: NextRequest) {
   });
   if (!svg) return NextResponse.json({ error: "could not generate a diagram for this question" }, { status: 422 });
 
-  await supa.from("mcqs").update({ image_svg: svg }).eq("run_id", run_id).eq("index", index);
+  await db.from("mcqs").update({ image_svg: svg }).eq("run_id", run_id).eq("index", index);
   return NextResponse.json({ image_svg: svg });
 }

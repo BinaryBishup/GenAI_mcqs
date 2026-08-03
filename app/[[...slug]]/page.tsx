@@ -1,5 +1,5 @@
-import { AssesslyApp } from "@/components/assessly/AssesslyApp";
+import { SmartCoGenApp } from "@/components/smartcogen/SmartCoGenApp";
 
 export default function Page() {
-  return <AssesslyApp />;
+  return <SmartCoGenApp />;
 }

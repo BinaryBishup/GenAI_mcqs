@@ -1,14 +1,15 @@
 import { NextRequest, after } from "next/server";
-import { SSEStream } from "@/lib/sse";
-import { runWorkflow } from "@/lib/runner";
-import { getUserTeam } from "@/lib/team";
-import { supabaseAdmin } from "@/lib/supabase";
-import { DAILY_QUESTION_LIMIT } from "@/lib/limits";
+import { SSEStream } from "@/lib/pipeline/sse";
+import { runWorkflow } from "@/lib/pipeline/runner";
+import { getUserTeam } from "@/lib/server/team";
+import { database } from "@/lib/server/db";
+import { DAILY_QUESTION_LIMIT } from "@/lib/pipeline/limits";
 import type { GenerateRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
 // Generation + plag-check + verify for large counts can run several minutes.
-// 800s is the Vercel Pro ceiling; on Hobby this is clamped to the plan limit.
+// Under `next start` on EC2 there is no platform timeout; this bound is the
+// app's own ceiling on a single request.
 export const maxDuration = 800;
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
   // Errored runs are excluded — they fail before consuming anything meaningful.
   const dayStart = new Date();
   dayStart.setHours(0, 0, 0, 0);
-  const { data: todays, error: usageErr } = await supabaseAdmin()
+  const { data: todays, error: usageErr } = await database()
     .from("runs")
     .select("count")
     .eq("team", team)
@@ -83,11 +84,10 @@ export async function POST(req: NextRequest) {
     }
   })();
 
-  // Keep the serverless function alive until the workflow finishes even if the
-  // client disconnects (closed tab / navigated away). Without this, Vercel can
-  // freeze the function once the response stream is cancelled, leaving the run
-  // stuck at "generating". The workflow persists everything to Supabase as it
-  // goes, so the user can reopen the run later and see it complete.
+  // Let the workflow run to completion even if the client disconnects (closed
+  // tab / navigated away) rather than being abandoned when the response stream
+  // is cancelled. The workflow persists everything to Postgres as it goes, so
+  // the user can reopen the run later and see it complete.
   after(workflow);
 
   return stream.toResponse();

@@ -2,28 +2,34 @@
 # Deploy the app to an EC2 box over SSH:
 #   ./deploy/deploy.sh ubuntu@<host-or-ip>
 # Requirements on the server: deploy/setup-server.sh has been run once, and
-# /var/www/assessly/.env.production exists (see .env.production.example).
+# /var/www/smartcogen/.env.production exists (see .env.production.example).
 set -euo pipefail
 
 TARGET="${1:?usage: ./deploy/deploy.sh user@host}"
-APP_DIR=/var/www/assessly
+APP_DIR=/var/www/smartcogen
 
 echo "==> Syncing source to $TARGET:$APP_DIR"
+# Exclude real secrets but KEEP the .env.*.example templates — setup-server.sh
+# and DEPLOYMENT.md both tell you to copy .env.production.example on the server,
+# so it has to actually get there.
 rsync -az --delete \
   --exclude node_modules \
   --exclude .next \
   --exclude .git \
-  --exclude '.env*' \
+  --exclude '.env' \
+  --exclude '.env.local' \
+  --exclude '.env.production' \
+  --exclude '.env.*.local' \
   --exclude '*.log' \
   ./ "$TARGET:$APP_DIR/"
 
 echo "==> Building + (re)starting on the server"
 ssh "$TARGET" bash -s <<'REMOTE'
 set -euo pipefail
-cd /var/www/assessly
+cd /var/www/smartcogen
 
 if [[ ! -f .env.production ]]; then
-  echo "ERROR: /var/www/assessly/.env.production is missing — copy .env.production.example and fill it in." >&2
+  echo "ERROR: /var/www/smartcogen/.env.production is missing — copy .env.production.example and fill it in." >&2
   exit 1
 fi
 

@@ -3,17 +3,27 @@
 #   bash setup-server.sh
 set -euo pipefail
 
-APP_DIR=/var/www/assessly
+APP_DIR=/var/www/smartcogen
+# Node 24 = Active LTS. Node 20 reached end-of-life in April 2026.
+NODE_MAJOR=24
 
 echo "==> System packages"
 sudo apt-get update -y
 sudo apt-get install -y nginx git curl unzip postgresql-client
 
-echo "==> Node 20 (NodeSource)"
-if ! command -v node >/dev/null || [[ "$(node -v)" != v2* ]]; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+echo "==> Node ${NODE_MAJOR} (NodeSource)"
+# Compare the MAJOR version numerically. The previous check was `!= v2*`, which
+# matched anything from v20 to v29 — so a box that already shipped an older or
+# newer Node would silently skip this install and build on the wrong runtime.
+current_node_major() {
+  command -v node >/dev/null 2>&1 || { echo 0; return; }
+  node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo 0
+}
+if [[ "$(current_node_major)" -lt "$NODE_MAJOR" ]]; then
+  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
   sudo apt-get install -y nodejs
 fi
+echo "    node $(node -v)  npm $(npm -v)"
 
 echo "==> PM2"
 sudo npm install -g pm2
@@ -26,8 +36,8 @@ sudo chown "$USER":"$USER" "$APP_DIR"
 
 echo "==> Nginx site"
 if [[ -f "$APP_DIR/deploy/nginx.conf" ]]; then
-  sudo cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/sites-available/assessly
-  sudo ln -sf /etc/nginx/sites-available/assessly /etc/nginx/sites-enabled/assessly
+  sudo cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/sites-available/smartcogen
+  sudo ln -sf /etc/nginx/sites-available/smartcogen /etc/nginx/sites-enabled/smartcogen
   sudo rm -f /etc/nginx/sites-enabled/default
   sudo nginx -t && sudo systemctl reload nginx
 else

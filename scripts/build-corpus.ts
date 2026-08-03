@@ -14,7 +14,7 @@
 import { config as dotenvConfig } from "dotenv";
 dotenvConfig({ path: ".env.local" });
 dotenvConfig({ path: ".env" });
-import { createClient } from "@supabase/supabase-js";
+import { database, pgPool } from "../lib/server/db";
 import * as cheerio from "cheerio";
 
 const BATCH = 200;            // rows per insert
@@ -104,16 +104,8 @@ function normalize(q: string): string {
 }
 
 async function main() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SECRET_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    throw new Error("set NEXT_PUBLIC_SUPABASE_URL and a key (SUPABASE_SECRET_KEY / SERVICE_ROLE_KEY / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)");
-  }
-  const supa = createClient(url, key, { auth: { persistSession: false } });
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not set");
+  const db = database();
 
   let buffer: ScrapedQuestion[] = [];
   let totalInserted = 0;
@@ -129,7 +121,7 @@ async function main() {
       question_norm: normalize(b.question),
       code: b.code,
     }));
-    const { error } = await supa.from("plag_corpus").insert(rows);
+    const { error } = await db.from("plag_corpus").insert(rows);
     if (error && !/duplicate key/i.test(error.message)) {
       throw new Error(`insert: ${error.message}`);
     }
@@ -149,7 +141,10 @@ async function main() {
   console.log(`\nDone. ${totalInserted} corpus rows inserted.`);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .then(() => pgPool().end())
+  .catch(async (e) => {
+    console.error(e);
+    await pgPool().end().catch(() => {});
+    process.exit(1);
+  });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { database } from "@/lib/server/db";
 
 export const runtime = "nodejs";
 
@@ -10,9 +10,9 @@ export const runtime = "nodejs";
  */
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const supa = supabaseAdmin();
+  const db = database();
 
-  const { data, error } = await supa
+  const { data, error } = await db
     .from("run_events")
     .select("type,data,ts")
     .eq("run_id", id)

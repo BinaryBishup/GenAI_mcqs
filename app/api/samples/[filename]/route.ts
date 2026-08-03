@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { getUserTeam } from "@/lib/team";
+import { database } from "@/lib/server/db";
+import { getUserTeam } from "@/lib/server/team";
 
 export const runtime = "nodejs";
 
@@ -9,8 +9,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ filename: 
   const { filename } = await ctx.params;
   const decoded = decodeURIComponent(filename);
 
-  const supa = supabaseAdmin();
-  const { data, error } = await supa
+  const db = database();
+  const { data, error } = await db
     .from("samples")
     .select("id,topic,difficulty,type,language,question,options,correct_index,code")
     .eq("source_file", decoded)
@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ filename:
   const { filename } = await ctx.params;
   const decoded = decodeURIComponent(filename);
 
-  const supa = supabaseAdmin();
+  const db = database();
   const { team } = await getUserTeam(req);
   if (!team) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
@@ -61,28 +61,28 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ filename:
   if (newName.length > 120) return NextResponse.json({ error: "name too long" }, { status: 400 });
   if (newName === decoded) return NextResponse.json({ filename: decoded });
 
-  const { data: existing, error: exErr } = await supa
+  const { data: existing, error: exErr } = await db
     .from("samples").select("id").eq("source_file", decoded).eq("team", team).limit(1);
   if (exErr) return NextResponse.json({ error: exErr.message }, { status: 500 });
   if (!existing?.length) return NextResponse.json({ error: "bank not found in your team" }, { status: 404 });
 
-  const { data: clash } = await supa
+  const { data: clash } = await db
     .from("samples").select("id").eq("source_file", newName).eq("team", team).limit(1);
   if (clash?.length) return NextResponse.json({ error: "A bank with that name already exists." }, { status: 409 });
 
-  const { error: upErr } = await supa
+  const { error: upErr } = await db
     .from("samples").update({ source_file: newName }).eq("source_file", decoded).eq("team", team);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
 
   // Keep tag memberships pointing at the renamed bank.
-  await supa.from("tag_items").update({ item_id: newName }).eq("item_type", "sample").eq("item_id", decoded);
+  await db.from("tag_items").update({ item_id: newName }).eq("item_type", "sample").eq("item_id", decoded);
 
   // Past runs record which banks seeded them (jsonb array of filenames).
-  const { data: refRuns } = await supa
+  const { data: refRuns } = await db
     .from("runs").select("id,sample_file_ids").contains("sample_file_ids", [decoded]);
   for (const r of refRuns ?? []) {
     const updated = ((r.sample_file_ids as string[]) ?? []).map((f) => (f === decoded ? newName : f));
-    await supa.from("runs").update({ sample_file_ids: updated }).eq("id", r.id);
+    await db.from("runs").update({ sample_file_ids: updated }).eq("id", r.id);
   }
 
   return NextResponse.json({ filename: newName });

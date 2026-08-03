@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { parseWorkbookBuffer, normalizeTopic, type SampleRow } from "@/lib/xls-parse";
-import { sanitizeSourceName, uniqueSourceFile } from "@/lib/sample-source";
+import { database } from "@/lib/server/db";
+import { parseWorkbookBuffer, normalizeTopic, type SampleRow } from "@/lib/banks/xls-parse";
+import { sanitizeSourceName, uniqueSourceFile } from "@/lib/banks/sample-source";
 import type { Difficulty, SamplePreviewMCQ } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const topic = topicRaw || normalizeTopic(file.name.replace(/\.xlsx?$/i, ""));
   const ext = file.name.toLowerCase().endsWith(".xlsx") ? ".xlsx" : ".xls";
   const sourceFile = await uniqueSourceFile(
-    supabaseAdmin(),
+    database(),
     `${sanitizeSourceName(topic)}${ext}`,
     ext,
   );

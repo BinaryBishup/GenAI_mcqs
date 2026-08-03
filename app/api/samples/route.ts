@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { getUserTeam } from "@/lib/team";
+import { database } from "@/lib/server/db";
+import { getUserTeam } from "@/lib/server/team";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,19 +25,19 @@ function inferLanguageFromFilename(filename: string): string | null {
 
 /** Catalog: one row per source_file, with metadata aggregated. Team-scoped. */
 export async function GET(req: NextRequest) {
-  const supa = supabaseAdmin();
+  const db = database();
 
   const { team } = await getUserTeam(req);
   if (!team) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
-  // Supabase caps a single select at 1000 rows; the samples table is larger, so
+  // Page through the samples table rather than relying on one unbounded select, so
   // page through all rows (ordered by the PK for stable, non-overlapping ranges)
   // before aggregating. Otherwise banks outside the first 1000 rows — including
   // newly uploaded ones — silently vanish from the catalog.
   const PAGE = 1000;
   const data: { source_file: string; topic: string; difficulty: string; type: string; language: string | null; uploaded_by: string | null }[] = [];
   for (let from = 0; ; from += PAGE) {
-    const { data: page, error } = await supa
+    const { data: page, error } = await db
       .from("samples")
       .select("source_file,topic,difficulty,type,language,uploaded_by")
       .eq("team", team)

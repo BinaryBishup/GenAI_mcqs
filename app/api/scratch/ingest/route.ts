@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { anthropic } from "@/lib/anthropic";
+import { llm } from "@/lib/ai/llm";
 import { env } from "@/lib/env";
-import { getUserTeam } from "@/lib/team";
+import { getUserTeam } from "@/lib/server/team";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,31 +85,27 @@ export async function POST(req: NextRequest) {
   if (rawText !== null) {
     const text = rawText.slice(0, MAX_RAW_TEXT_CHARS).trim();
     if (!text) return NextResponse.json({ error: `${name} is empty` }, { status: 400 });
-    const digest = text.length <= MAX_DIGEST_CHARS ? text : await extract({ type: "text", text });
+    const digest = text.length <= MAX_DIGEST_CHARS ? text : await extract(text);
     return NextResponse.json({ name, digest });
   }
 
+  // PDFs are the one format with no local extraction path: Anthropic reads the
+  // bytes natively. A provider without that capability must implement
+  // readPdfText (with a local extractor) — until then, say so plainly rather
+  // than returning an empty digest.
+  const provider = llm();
+  if (!provider.readPdfText) {
+    return NextResponse.json(
+      { error: `${name}: the "${provider.name}" model cannot read PDFs — convert it to .docx or .txt and upload again` },
+      { status: 400 },
+    );
+  }
   const data = Buffer.from(await file.arrayBuffer()).toString("base64");
   try {
-    const digest = await extract({ type: "document", source: { type: "base64", media_type: "application/pdf", data } });
+    const digest = (await provider.readPdfText(data, EXTRACT_SYSTEM, 1200)).slice(0, MAX_DIGEST_CHARS);
+    if (!digest) throw new Error("empty extraction");
     return NextResponse.json({ name, digest });
   } catch (e) {
-    // Dev-only fallback: local networks that block api.anthropic.com delegate
-    // to the deployed endpoint so the flow stays testable locally.
-    if (process.env.NODE_ENV !== "production") {
-      try {
-        const fwd = new FormData();
-        fwd.set("file", file);
-        const r = await fetch("https://gen-ai-mcqs.vercel.app/api/scratch/ingest", {
-          method: "POST",
-          body: fwd,
-          headers: { authorization: req.headers.get("authorization") ?? "" },
-        });
-        if (r.ok) return NextResponse.json(await r.json());
-      } catch {
-        /* fall through */
-      }
-    }
     return NextResponse.json(
       { error: `could not read ${name}: ${e instanceof Error ? e.message : String(e)}` },
       { status: 502 },
@@ -117,19 +113,15 @@ export async function POST(req: NextRequest) {
   }
 }
 
-type Block =
-  | { type: "text"; text: string }
-  | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } };
-
-async function extract(block: Block): Promise<string> {
-  const res = await anthropic().messages.create({
+/** Digest already-extracted text (Word/Excel/plain files) down to assessable content. */
+async function extract(text: string): Promise<string> {
+  const res = await llm().complete({
     model: env.modelFor("fast"),
-    max_tokens: 1200,
+    maxTokens: 1200,
     system: EXTRACT_SYSTEM,
-    messages: [{ role: "user", content: [block] }],
+    messages: [{ role: "user", content: text }],
   });
-  if (!Array.isArray(res.content)) throw new Error("Anthropic API unreachable (network intercepted the request)");
-  const text = res.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
-  if (!text) throw new Error("empty extraction");
-  return text.slice(0, MAX_DIGEST_CHARS);
+  const out = res.text.trim();
+  if (!out) throw new Error("empty extraction");
+  return out.slice(0, MAX_DIGEST_CHARS);
 }

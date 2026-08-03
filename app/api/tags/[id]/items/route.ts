@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { getUserTeam } from "@/lib/team";
+import { database, type Database } from "@/lib/server/db";
+import { getUserTeam } from "@/lib/server/team";
 
 export const runtime = "nodejs";
 
 /** Confirm the tag exists and belongs to the caller's active team. */
-async function tagInTeam(supa: ReturnType<typeof supabaseAdmin>, id: string, team: string) {
-  const { data } = await supa.from("tags").select("id").eq("id", id).eq("team", team).maybeSingle();
+async function tagInTeam(db: Database, id: string, team: string) {
+  const { data } = await db.from("tags").select("id").eq("id", id).eq("team", team).maybeSingle();
   return !!data;
 }
 
@@ -19,16 +19,16 @@ function parseItem(body: Record<string, unknown>) {
 /** POST /api/tags/:id/items { item_type, item_id } — add a run or bank to the tag. */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const supa = supabaseAdmin();
+  const db = database();
   const { team } = await getUserTeam(req);
   if (!team) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
   const item = parseItem(await req.json().catch(() => ({})));
   if (!item) return NextResponse.json({ error: "item_type and item_id required" }, { status: 400 });
-  if (!(await tagInTeam(supa, id, team))) return NextResponse.json({ error: "tag not found" }, { status: 404 });
+  if (!(await tagInTeam(db, id, team))) return NextResponse.json({ error: "tag not found" }, { status: 404 });
 
   // Idempotent: ignore a duplicate membership row.
-  const { error } = await supa
+  const { error } = await db
     .from("tag_items")
     .upsert({ tag_id: id, ...item }, { onConflict: "tag_id,item_type,item_id", ignoreDuplicates: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -38,15 +38,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 /** DELETE /api/tags/:id/items { item_type, item_id } — remove a member from the tag. */
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const supa = supabaseAdmin();
+  const db = database();
   const { team } = await getUserTeam(req);
   if (!team) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
 
   const item = parseItem(await req.json().catch(() => ({})));
   if (!item) return NextResponse.json({ error: "item_type and item_id required" }, { status: 400 });
-  if (!(await tagInTeam(supa, id, team))) return NextResponse.json({ error: "tag not found" }, { status: 404 });
+  if (!(await tagInTeam(db, id, team))) return NextResponse.json({ error: "tag not found" }, { status: 404 });
 
-  const { error } = await supa
+  const { error } = await db
     .from("tag_items")
     .delete()
     .eq("tag_id", id)

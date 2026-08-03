@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { anthropic, extractJson } from "@/lib/anthropic";
+import { llm, extractJson } from "@/lib/ai/llm";
 import { env } from "@/lib/env";
-import { getUserTeam } from "@/lib/team";
-import { INTERVIEW_SYSTEM, buildInterviewUser, sanitizeBrief } from "@/lib/scratch";
+import { getUserTeam } from "@/lib/server/team";
+import { INTERVIEW_SYSTEM, buildInterviewUser, sanitizeBrief } from "@/lib/ai/scratch";
 import type { ScratchChatMsg, ScratchDoc, ScratchInterviewReply } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -45,24 +45,6 @@ export async function POST(req: NextRequest) {
     const reply = await runTurn(messages, docs);
     return NextResponse.json(reply);
   } catch (e) {
-    // Dev-only fallback: local networks that block api.anthropic.com delegate
-    // to the deployed endpoint so the flow stays testable locally.
-    if (process.env.NODE_ENV !== "production") {
-      try {
-        const r = await fetch("https://gen-ai-mcqs.vercel.app/api/scratch/interview", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            authorization: req.headers.get("authorization") ?? "",
-            "x-assessly-team": req.headers.get("x-assessly-team") ?? "",
-          },
-          body: JSON.stringify({ messages, docs }),
-        });
-        if (r.ok) return NextResponse.json(await r.json());
-      } catch {
-        /* fall through */
-      }
-    }
     return NextResponse.json(
       { error: `interview failed: ${e instanceof Error ? e.message : String(e)}` },
       { status: 502 },
@@ -71,15 +53,14 @@ export async function POST(req: NextRequest) {
 }
 
 async function runTurn(messages: ScratchChatMsg[], docs: ScratchDoc[]): Promise<ScratchInterviewReply> {
-  const res = await anthropic().messages.create({
+  const res = await llm().complete({
     model: env.modelFor("balanced"),
-    max_tokens: 1600,
-    system: [{ type: "text", text: INTERVIEW_SYSTEM, cache_control: { type: "ephemeral" } }],
+    maxTokens: 1600,
+    system: INTERVIEW_SYSTEM,
+    cacheSystem: true,
     messages: [{ role: "user", content: buildInterviewUser(messages, docs) }],
   });
-  if (!Array.isArray(res.content)) throw new Error("Anthropic API unreachable (network intercepted the request)");
-  const text = res.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-  const parsed = JSON.parse(extractJson(text)) as Record<string, unknown>;
+  const parsed = JSON.parse(extractJson(res.text)) as Record<string, unknown>;
 
   if (parsed.action === "ready") {
     const brief = sanitizeBrief(parsed.brief);

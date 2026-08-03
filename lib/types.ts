@@ -3,9 +3,10 @@ export type MCQType = "general" | "code";
 export type Difficulty = "easy" | "medium" | "hard";
 export type Quality = "fast" | "balanced" | "highest";
 export type PlagStatus = "pending" | "unique" | "flagged" | "revamped" | "gave_up";
-// "reviewing" is the simplified pipeline's single quality pass (replaces the old
-// plagchecking/revamping/verifying phases, which remain in the union only so
-// historical run rows still type-check).
+// Resting statuses a run row moves through, in pipeline order:
+//   generating → plagchecking → reviewing → verifying → done | error
+// "revamping" is only ever an event type during regeneration, never persisted
+// as a status; it stays in the union so historical rows still type-check.
 export type RunStatus = "pending" | "generating" | "reviewing" | "plagchecking" | "revamping" | "verifying" | "done" | "error";
 
 /** The working teams; a profile belongs to one, and may be granted visibility into more. */
@@ -55,9 +56,6 @@ export interface MCQ {
   plag_status?: PlagStatus;
   plag_matches?: string[];
   plag_attempts?: number;
-  code_verified?: boolean | null;
-  code_actual_output?: string | null;
-  code_fix?: string | null;
   /** Independent re-derivation of the answer for non-code MCQs. */
   answer_check_status?: AnswerCheckStatus;
   /** Option index the independent checker believed correct (for disagree). */
@@ -312,26 +310,3 @@ export interface PlagVerdict {
   method: "corpus" | "web" | "corpus+web";
 }
 
-export interface Judge0Result {
-  ok: boolean;
-  stdout: string;
-  stderr: string;
-  exit_code: number;
-  duration_ms: number;
-}
-
-export type VerifyFix =
-  | "none"
-  | "reassigned_correct_index"
-  | "regenerate_options"
-  | "compile_or_runtime_error"
-  | "skipped_unsupported_language"
-  | "timeout";
-
-export interface VerifyOutcome {
-  verified: boolean | null;
-  actual_stdout: string;
-  fix: VerifyFix;
-  new_correct_index: number | null;
-  stderr: string;
-}

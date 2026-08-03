@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { database } from "@/lib/server/db";
 
 export const runtime = "nodejs";
 
 /** Authoritative final list. Used as a fallback when SSE drops mid-stream. */
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const supa = supabaseAdmin();
+  const db = database();
 
-  const { data, error } = await supa
+  const { data, error } = await db
     .from("mcqs")
     .select("*")
     .eq("run_id", id)
@@ -29,9 +29,6 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     plag_status: m.plag_status,
     plag_matches: m.plag_matches,
     plag_attempts: m.plag_attempts,
-    code_verified: m.code_verified,
-    code_actual_output: m.code_actual_output,
-    code_fix: m.code_fix,
     answer_check_status: m.answer_check_status ?? undefined,
     answer_check_index: m.answer_check_index ?? null,
     answer_check_notes: m.answer_check_notes ?? null,

@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { database } from "@/lib/server/db";
 
 export const runtime = "nodejs";
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const supa = supabaseAdmin();
+  const db = database();
 
   const [{ data: run, error: runErr }, { data: mcqs, error: mcqErr }] = await Promise.all([
-    supa.from("runs").select("*").eq("id", id).single(),
-    supa.from("mcqs").select("*").eq("run_id", id).order("index"),
+    db.from("runs").select("*").eq("id", id).single(),
+    db.from("mcqs").select("*").eq("run_id", id).order("index"),
   ]);
   if (runErr || !run) return NextResponse.json({ error: "run not found" }, { status: 404 });
   if (mcqErr) return NextResponse.json({ error: mcqErr.message }, { status: 500 });
@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const parentIds = [...new Set((mcqs ?? []).map((m) => m.parent_sample_id).filter(Boolean))] as string[];
   const sourceById = new Map<string, { question: string; options: string[]; correct_index: number; source_file: string; difficulty: string }>();
   if (parentIds.length > 0) {
-    const { data: parents } = await supa
+    const { data: parents } = await db
       .from("samples")
       .select("id,question,options,correct_index,source_file,difficulty")
       .in("id", parentIds);
@@ -50,9 +50,6 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       plag_status: m.plag_status,
       plag_matches: m.plag_matches,
       plag_attempts: m.plag_attempts,
-      code_verified: m.code_verified,
-      code_actual_output: m.code_actual_output,
-      code_fix: m.code_fix,
       answer_check_status: m.answer_check_status ?? undefined,
       answer_check_index: m.answer_check_index ?? null,
       answer_check_notes: m.answer_check_notes ?? null,
